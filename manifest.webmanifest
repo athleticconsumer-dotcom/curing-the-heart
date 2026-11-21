@@ -1,7 +1,7 @@
 {
   "name": "Curing the Heart",
   "short_name": "Curing Heart",
-  "description": "Times of acceptance, prayer ticks, muḥāsabah after every prayer and your du'a list.",
+  "description": "Times of acceptance for du'a, prayer ticks, muḥāsabah after every prayer and your du'a list. Based on Ibn al-Qayyim's The Disease and the Cure.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -9,12 +9,92 @@
   "background_color": "#1B2547",
   "theme_color": "#1B2547",
   "icons": [
-    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    {"name": "Muḥāsabah", "url": "./#check", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
-    {"name": "Prayers", "url": "./#prayers", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]}
+    {
+      "name": "Muḥāsabah",
+      "url": "./#check",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Prayers",
+      "url": "./#prayers",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My du'as",
+      "url": "./#mine",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "id": "./",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "lifestyle",
+    "education",
+    "productivity"
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/today.png",
+      "sizes": "1030x2060",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Today: the next time of acceptance"
+    },
+    {
+      "src": "screenshots/check.png",
+      "sizes": "1030x2060",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Muḥāsabah after every prayer"
+    },
+    {
+      "src": "screenshots/wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Curing the Heart"
+    }
   ]
 }

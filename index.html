@@ -1,8 +1,14 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Curing the Heart</title>
 <meta name="theme-color" content="#1B2547">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Curing Heart">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Times of acceptance for du'a, prayer ticks, muḥāsabah after every prayer and your du'a list. Based on Ibn al-Qayyim's The Disease and the Cure.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
@@ -167,6 +173,7 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 .chain span{border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--ink);background:var(--surface)}
 .card ol{margin:4px 0 0;padding-left:18px;font-size:.88rem;color:var(--muted)}
 .authbtn{background:var(--band-ink);color:var(--night);border:0;border-radius:999px;padding:6px 12px;font-weight:700;font-size:.8rem}
+.authbtn.install{background:var(--gold);color:#1B1405}
 .sync{font-size:.72rem;color:var(--band-muted);text-align:right}
 @media (max-width:440px){.row{grid-template-columns:62px 1fr}.row .tag{grid-column:2;justify-self:start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -182,6 +189,7 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
       </div>
       <div style="display:grid;justify-items:end;gap:6px">
         <div class="sub" id="clock" style="font-variant-numeric:tabular-nums;font-size:1.4rem;color:var(--band-ink)">--:--</div>
+        <button class="authbtn install" id="installBtn" hidden>Install app</button>
         <button class="authbtn" id="authBtn" hidden>Sign in with Google</button>
         <div class="sync" id="sync">Saved on this device</div>
       </div>
@@ -363,6 +371,11 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
     </div>
   </div>
   <div class="status" id="setSaved">Settings are saved on this device.</div>
+  <div class="block" id="installBlock">
+    <h3>Install the app</h3>
+    <div class="src" id="installHelp">Chrome on Android or computer: tap <b>Install app</b> at the top, or open the Chrome menu ⋮ and choose <b>Install app</b> (on Android also "Add to Home screen"). iPhone: open this page in Safari, tap Share, then <b>Add to Home Screen</b>.</div>
+    <div class="dua-actions"><button class="btn primary" id="installBtn2" type="button" hidden>Install app</button></div>
+  </div>
   <div class="block">
     <h3>Bring over data from the Claude version</h3>
     <div class="src">In the Claude version, open Settings and tap "Copy my data". Paste it here while signed in and tap Import. Existing entries with the same id are replaced.</div>
@@ -856,6 +869,15 @@ renderSettings();renderAdab();renderAnytime();recompute();renderMine();show(loca
 setInterval(tick,30000);
 initStore();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+/* install (Chrome / Edge / Android) */
+let deferredInstall=null;
+const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+function showInstall(on){$("#installBtn").hidden=!on;$("#installBtn2").hidden=!on}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;showInstall(true)});
+async function doInstall(){if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(_){}deferredInstall=null;showInstall(false)}
+$("#installBtn").addEventListener("click",doInstall);$("#installBtn2").addEventListener("click",doInstall);
+window.addEventListener("appinstalled",()=>{showInstall(false);$("#installHelp").textContent="Installed. Open Curing the Heart from your home screen or app list."});
+if(isStandalone())$("#installBlock").hidden=true;
 })();
 </script>
 </body></html>
