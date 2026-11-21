@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Curing the Heart</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><title>Curing the Heart</title>
 <meta name="theme-color" content="#1B2547">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
@@ -44,7 +44,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 /* Header band */
 .band{background:linear-gradient(180deg,var(--night),var(--night-2));color:var(--band-ink)}
 .band .wrap{padding-block:22px 18px;display:grid;gap:14px}
-.band-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.band-top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
+.band-top>div:first-child{min-width:0}
+@media (max-width:440px){.band h1{font-size:1.55rem}.authbtn{padding:5px 10px;font-size:.74rem}#clock{font-size:1.2rem!important}}
 .band h1{font-size:1.9rem}
 .band .sub{color:var(--band-muted);font-size:.9rem}
 .band .eyebrow{color:var(--band-muted)}
@@ -174,10 +176,11 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 .card ol{margin:4px 0 0;padding-left:18px;font-size:.88rem;color:var(--muted)}
 .authbtn{background:var(--band-ink);color:var(--night);border:0;border-radius:999px;padding:6px 12px;font-weight:700;font-size:.8rem}
 .authbtn.install{background:var(--gold);color:#1B1405}
-.sync{font-size:.72rem;color:var(--band-muted);text-align:right}
+.sync{font-size:.72rem;color:var(--band-muted);text-align:right;max-width:120px;line-height:1.3}
+.band h1{line-height:1.15}
 @media (max-width:440px){.row{grid-template-columns:62px 1fr}.row .tag{grid-column:2;justify-self:start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-</style>
+</style></head><body>
 
 <header class="band">
   <div class="wrap">
@@ -483,7 +486,23 @@ function windows(now){
 }
 
 /* ---------- Hijri ---------- */
+const HM=["Muḥarram","Ṣafar","Rabīʿ al-Awwal","Rabīʿ al-Ākhir","Jumādā al-Ūlā","Jumādā al-Ākhirah","Rajab","Shaʿbān","Ramaḍān","Shawwāl","Dhū al-Qaʿdah","Dhū al-Ḥijjah"];
+function hijriTab(d){
+  // tabular Islamic calendar (civil), may differ from moon sighting by a day
+  const jd=Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000)+2440587.5)+1;
+  const l0=jd-1948440+10632, n=Math.floor((l0-1)/10631), l1=l0-10631*n+354;
+  const j=Math.floor((10985-l1)/5316)*Math.floor((50*l1)/17719)+Math.floor(l1/5670)*Math.floor((43*l1)/15238);
+  const l2=l1-Math.floor((30-j)/15)*Math.floor((17719*j)/50)-Math.floor(j/16)*Math.floor((15238*j)/43)+29;
+  const m=Math.floor((24*l2)/709), day=l2-Math.floor((709*m)/24), y=30*n+j-30;
+  return{day,month:m,year:y};
+}
 function hijri(d){
+  try{const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn",{day:"numeric",month:"numeric",year:"numeric"});
+    if(p.resolvedOptions().calendar.startsWith("islamic")){const parts=p.formatToParts(d),g=t=>Number((parts.find(x=>x.type===t)||{}).value);
+      const day=g("day"),month=g("month"),year=g("year");if(day&&month&&year>1400)return{text:day+" "+HM[month-1]+" "+year+" AH",day,month}}}catch(e){}
+  const t=hijriTab(d);return{text:t.day+" "+HM[t.month-1]+" "+t.year+" AH",day:t.day,month:t.month};
+}
+function hijriOld(d){
   try{const f=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric"});
     const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn",{day:"numeric",month:"numeric"}).formatToParts(d);
     const g=t=>Number((p.find(x=>x.type===t)||{}).value);
