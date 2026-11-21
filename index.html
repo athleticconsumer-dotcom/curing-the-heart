@@ -1,0 +1,854 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Curing the Heart</title>
+<meta name="theme-color" content="#1B2547">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a single-column app, "night sky" header band with a 24-hour dial of the day, tabbed views below */
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --ink:#18213B; --muted:#5B6584; --line:#D6DCE8;
+  --night:#1B2547; --night-2:#2C3A6B; --gold:#A8711A; --gold-soft:#F3E3C2; --now:#1F7A5C; --now-soft:#DDF1E8;
+  --past:#9AA3BB;
+  --f-display:"Marcellus","Iowan Old Style",Georgia,serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-ar:"Amiri","Traditional Arabic","Geeza Pro",serif;
+  --band-ink:#F4F1FF; --band-muted:#AEB8DD;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1222; --surface:#161D33; --ink:#E8EBF5; --muted:#9AA4C4; --line:#283253;
+  --night:#0A0F1E; --night-2:#1D2850; --gold:#E2AE55; --gold-soft:#3A2E17; --now:#4CC79B; --now-soft:#143528; --past:#5D6787;
+  --band-ink:#F4F1FF; --band-muted:#94A0CC; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1222; --surface:#161D33; --ink:#E8EBF5; --muted:#9AA4C4; --line:#283253;
+  --night:#0A0F1E; --night-2:#1D2850; --gold:#E2AE55; --gold-soft:#3A2E17; --now:#4CC79B; --now-soft:#143528; --past:#5D6787;
+  --band-ink:#F4F1FF; --band-muted:#94A0CC; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0}
+.ar{font-family:var(--f-ar);direction:rtl;text-align:right;font-size:1.45rem;line-height:2.1}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Header band */
+.band{background:linear-gradient(180deg,var(--night),var(--night-2));color:var(--band-ink)}
+.band .wrap{padding-block:22px 18px;display:grid;gap:14px}
+.band-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.band h1{font-size:1.9rem}
+.band .sub{color:var(--band-muted);font-size:.9rem}
+.band .eyebrow{color:var(--band-muted)}
+.jumuah-pill{display:inline-block;background:var(--gold);color:#1B1405;font-weight:700;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.dial{position:relative;height:46px}
+.dial svg{width:100%;height:46px;display:block;overflow:visible}
+
+/* Now card */
+.nowcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:-4px;display:grid;gap:10px}
+.state{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--now);box-shadow:0 0 0 4px var(--now-soft)}
+.state.next .dot{background:var(--gold);box-shadow:0 0 0 4px var(--gold-soft)}
+.nowcard h2{font-size:1.45rem}
+.countdown{font-variant-numeric:tabular-nums;color:var(--muted)}
+
+/* Tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto}
+.tab{background:none;border:0;padding:12px 12px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
+main .wrap{padding-block:18px 48px;display:grid;gap:22px}
+section.view{display:grid;gap:18px}
+
+/* Rows of times */
+.list{display:grid;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+.row{display:grid;grid-template-columns:76px 1fr auto;gap:12px;padding:12px 14px;border-top:1px solid var(--line);align-items:start}
+.row:first-child{border-top:0}
+.row .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.05rem}
+.row .t small{display:block;font-weight:500;color:var(--muted);font-size:.78rem}
+.row .what{min-width:0}
+.row .what b{font-weight:600}
+.row .what p{margin:2px 0 0;color:var(--muted);font-size:.86rem}
+.row.past{opacity:.55}
+.row.now{background:var(--now-soft)}
+.row.special .t{color:var(--gold)}
+.tag{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.row.now .tag{border-color:var(--now);color:var(--now)}
+.src{font-size:.78rem;color:var(--muted)}
+
+.block{display:grid;gap:10px}
+.block > h3{font-size:1.25rem}
+.note{background:var(--gold-soft);border-radius:12px;padding:12px 14px;font-size:.92rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px;align-content:start}
+.card b{font-weight:600}
+.card p{margin:0;color:var(--muted);font-size:.88rem}
+
+/* Checklist */
+.check{display:grid;gap:2px}
+.check label{display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-bottom:1px dashed var(--line)}
+.check input{margin-top:4px;accent-color:var(--gold);width:18px;height:18px;flex:none}
+.check span small{display:block;color:var(--muted);font-size:.82rem}
+
+/* Du'as */
+.dua{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px}
+.dua-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.dua-head b{font-weight:600;font-size:1.02rem}
+.dua .tr{color:var(--muted);font-size:.92rem;margin:0}
+.dua .tags{display:flex;gap:6px;flex-wrap:wrap}
+.dua-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;font-weight:600;font-size:.88rem}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.said{background:var(--now-soft);border-color:var(--now);color:var(--now)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.empty{border:1.5px dashed var(--line);border-radius:14px;padding:18px;display:grid;gap:10px;color:var(--muted)}
+form.add{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+.field{display:grid;gap:4px}
+.field label{font-size:.82rem;font-weight:600;color:var(--muted)}
+input[type=text],input[type=number],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+textarea{resize:vertical;min-height:70px}
+textarea.ar-in{font-family:var(--f-ar);direction:rtl;font-size:1.25rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips label{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:.84rem;cursor:pointer}
+.chips input{accent-color:var(--gold)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.status{font-size:.82rem;color:var(--muted)}
+blockquote{margin:0;padding:10px 14px;border-left:3px solid var(--gold);background:var(--surface);border-radius:0 10px 10px 0}
+blockquote p{margin:0}
+blockquote cite{display:block;font-style:normal;color:var(--muted);font-size:.82rem;margin-top:4px}
+.prose p{margin:0 0 8px}
+.ph-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.score{font-family:var(--f-display);font-size:1.7rem;font-variant-numeric:tabular-nums}
+.score small{font-family:var(--f-body);font-size:.8rem;color:var(--muted)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tick{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink)}
+.tick .box{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:.85rem;color:transparent}
+.tick[aria-pressed="true"]{border-color:var(--now);background:var(--now-soft)}
+.tick[aria-pressed="true"] .box{background:var(--now);border-color:var(--now);color:var(--surface)}
+.tick b{font-weight:600;display:block}
+.tick small{display:block;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.mini{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.mini .tick{grid-template-columns:22px auto;gap:6px;padding:6px 10px}
+.mini .tick .box{width:20px;height:20px;font-size:.7rem}
+.weekwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
+.week th,.week td{padding:6px 3px;text-align:center;border-top:1px solid var(--line)}
+.week thead th{border-top:0;color:var(--muted);font-weight:600;font-size:.74rem;line-height:1.2}
+.week thead th.cur{color:var(--ink)}
+.week thead th.fri{color:var(--gold)}
+.week th[scope=row]{text-align:left;padding-left:10px;font-weight:600;white-space:nowrap}
+.week tr.grp th{background:var(--bg);text-align:left;padding-left:12px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cell{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);background:none;padding:0;vertical-align:middle}
+.cell.on{background:var(--now);border-color:var(--now)}
+.streak b{font-family:var(--f-display);font-size:1.6rem;font-weight:400;font-variant-numeric:tabular-nums}
+.slots{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.slot{flex:1 0 auto;min-width:72px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:8px 10px;text-align:left;display:grid;gap:2px}
+.slot b{font-weight:600;font-size:.9rem}
+.slot small{color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.slot.done{border-color:var(--now);background:var(--now-soft)}
+.slot.done small{color:var(--now)}
+.slot[aria-current="true"]{outline:2px solid var(--gold);outline-offset:1px}
+.slot.future{opacity:.6}
+.chk{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:14px}
+.door{display:grid;gap:6px;padding-top:12px;border-top:1px dashed var(--line)}
+.door-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.door-top b{font-weight:600}
+.door p{margin:0;font-size:.9rem}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:8px;font-weight:600;font-size:.88rem}
+.seg button[aria-pressed="true"][data-val="g"]{background:var(--now);border-color:var(--now);color:var(--surface)}
+.seg button[aria-pressed="true"][data-val="s"]{background:var(--gold);border-color:var(--gold);color:var(--surface)}
+.seg button:disabled{opacity:.5;cursor:default}
+.fix{font-size:.86rem;background:var(--gold-soft);border-radius:10px;padding:8px 10px}
+.chain{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.82rem;color:var(--muted)}
+.chain span{border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--ink);background:var(--surface)}
+.card ol{margin:4px 0 0;padding-left:18px;font-size:.88rem;color:var(--muted)}
+.authbtn{background:var(--band-ink);color:var(--night);border:0;border-radius:999px;padding:6px 12px;font-weight:700;font-size:.8rem}
+.sync{font-size:.72rem;color:var(--band-muted);text-align:right}
+@media (max-width:440px){.row{grid-template-columns:62px 1fr}.row .tag{grid-column:2;justify-self:start}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div class="band-top">
+      <div>
+        <div class="eyebrow" id="hijri">&nbsp;</div>
+        <h1 id="dayTitle">Today</h1>
+        <div class="sub" id="placeLine">Kreuzlingen</div>
+      </div>
+      <div style="display:grid;justify-items:end;gap:6px">
+        <div class="sub" id="clock" style="font-variant-numeric:tabular-nums;font-size:1.4rem;color:var(--band-ink)">--:--</div>
+        <button class="authbtn" id="authBtn" hidden>Sign in with Google</button>
+        <div class="sync" id="sync">Saved on this device</div>
+      </div>
+    </div>
+    <div class="dial" aria-hidden="true"><svg id="dial" viewBox="0 0 1000 46" preserveAspectRatio="none"></svg></div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" data-view="today" aria-selected="true">Today</button>
+    <button class="tab" role="tab" data-view="prayers" aria-selected="false">Prayers</button>
+    <button class="tab" role="tab" data-view="check" aria-selected="false">Muḥāsabah</button>
+    <button class="tab" role="tab" data-view="mine" aria-selected="false">My du'as</button>
+    <button class="tab" role="tab" data-view="adab" aria-selected="false">How to ask</button>
+    <button class="tab" role="tab" data-view="setup" aria-selected="false">Settings</button>
+  </div>
+</nav>
+
+<main><div class="wrap">
+
+<!-- TODAY -->
+<section class="view" id="v-today">
+  <div class="nowcard" id="nowcard"></div>
+  <div class="block" id="chkNudge" hidden></div>
+  <div class="block" id="miniTrk"></div>
+  <div class="block" id="specialDay"></div>
+  <div class="block">
+    <h3>Today's times</h3>
+    <div class="list" id="timeList"></div>
+    <div class="src">Times are calculated for your location. Set your mosque's iqāmah gap and offsets in Settings so they match exactly.</div>
+  </div>
+  <div class="block">
+    <h3>Any time of day</h3>
+    <div class="cards" id="anytime"></div>
+  </div>
+</section>
+
+<!-- PRAYERS -->
+<section class="view" id="v-prayers" hidden>
+  <div class="block">
+    <div class="ph-head"><div><div class="eyebrow" id="trkDateLbl"></div><h3 id="trkTitle">Today</h3></div><div class="score" id="trkScore"></div></div>
+    <div id="trkGroups" class="block"></div>
+    <div class="src">Your day runs from Fajr to Fajr, so a night prayer after midnight still counts for the evening before.</div>
+  </div>
+  <div class="block">
+    <h3>Last 7 days</h3>
+    <div class="weekwrap"><table class="week" id="weekGrid"></table></div>
+    <div class="src">Tap any circle to fix a day you forgot to tick.</div>
+  </div>
+  <div class="block"><h3>Streaks</h3><div class="cards" id="streaks" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"></div></div>
+  <div class="block">
+    <blockquote><p>"Which deed is most beloved to Allah?" He said: "The prayer at its time."</p><cite>Bukhārī 527, Muslim 85</cite></blockquote>
+    <blockquote><p>"Whoever prays twelve rakʿahs in a day and night, a house is built for him in Paradise."</p><cite>Muslim 728: 4 before Ẓuhr and 2 after, 2 after Maghrib, 2 after ʿIshāʾ, 2 before Fajr (Tirmidhī 415)</cite></blockquote>
+    <blockquote><p>"The best prayer after the obligatory prayer is the prayer at night."</p><cite>Muslim 1163</cite></blockquote>
+  </div>
+  <div class="status" id="trkStatus"></div>
+</section>
+
+<!-- MUHASABAH -->
+<section class="view" id="v-check" hidden>
+  <div class="block">
+    <div class="prose"><p>After each prayer, look back over the hours since the last one and check the four doors sins come through (p. 341). It takes a minute. "The wise one holds himself to account and works for what comes after death" (Tirmidhī 2459, book p. 61).</p></div>
+    <div class="slots" id="chkSlots"></div>
+    <div id="chkCard"></div>
+  </div>
+  <div class="block">
+    <h3>The four filters</h3>
+    <div class="cards">
+      <div class="card"><b>The glance · p. 341</b><p>The glance leads to everything after it:</p><div class="chain"><span>glance</span>→<span>thought</span>→<span>idea</span>→<span>desire</span>→<span>craving</span>→<span>resolve</span>→<span>action</span></div><p>"Patience in lowering the gaze is easier than patience with the pain of what comes after it."</p></div>
+      <div class="card"><b>The thought · p. 346</b><p>Keep every thought within four foundations:</p><ol><li>bringing a benefit in this world</li><li>repelling a harm in this world</li><li>bringing a benefit for the ākhirah</li><li>repelling a harm of the ākhirah</li></ol><p>Everything else is either a whisper of Shayṭān or an empty wish. Put the most important first. A passing thought does no harm; calling it back does (p. 349).</p></div>
+      <div class="card"><b>The word · p. 353</b><p>Before you speak, ask:</p><ol><li>Is there benefit in it for my dīn? If not, stay silent.</li><li>Is there something better to say? Then say that, not the lesser.</li></ol><p>"Whoever believes in Allah and the Last Day, let him say good or stay silent" (Bukhārī 6475, Muslim 47).</p></div>
+      <div class="card"><b>The step · p. 361</b><p>Take no step towards anything without reward. If a step brings no reward, staying seated is better. A permissible errand done for Allah becomes a step of nearness.</p></div>
+    </div>
+  </div>
+  <div class="block"><h3>Last 7 days</h3><div class="cards" id="chkWeek" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"></div></div>
+</section>
+
+<!-- MY DUAS -->
+<section class="view" id="v-mine" hidden>
+  <div class="block">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h3>My du'as</h3>
+      <button class="btn primary" id="openAdd">Add a du'a</button>
+    </div>
+    <div class="status" id="storeStatus">Loading your list…</div>
+    <form class="add" id="addForm" hidden>
+      <div class="field"><label for="f-title">Title</label><input type="text" id="f-title" required placeholder="For my parents"></div>
+      <div class="field"><label for="f-ar">Arabic (optional)</label><textarea id="f-ar" class="ar-in" placeholder="رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا"></textarea></div>
+      <div class="field"><label for="f-tr">Meaning or what you ask for</label><textarea id="f-tr" placeholder="My Lord, have mercy on them as they raised me when I was small."></textarea></div>
+      <div class="field"><label>Best moment to make it</label><div class="chips" id="f-tags"></div></div>
+      <div class="dua-actions"><button class="btn primary" type="submit" id="saveBtn">Save du'a</button><button class="btn ghost" type="button" id="cancelAdd">Cancel</button></div>
+    </form>
+    <div id="myList" class="block"></div>
+  </div>
+  <div class="block">
+    <h3>From the kitab</h3>
+    <p class="src" style="margin:0">Du'as Ibn al-Qayyim lists as the most likely to be answered (The Disease and the Cure, pp. 23–27). Add any of them to your list.</p>
+    <div id="library" class="block"></div>
+  </div>
+</section>
+
+<!-- ADAB -->
+<section class="view" id="v-adab" hidden>
+  <div class="block">
+    <h3>The du'a that is seldom rejected</h3>
+    <div class="prose"><p>Ibn al-Qayyim (p. 21): if all of this comes together, "it would be a supplication that would seldom be rejected." Tick through it before an important du'a.</p></div>
+    <div class="check" id="adabCheck"></div>
+    <div class="dua-actions"><button class="btn ghost" id="resetCheck" type="button">Clear ticks</button></div>
+  </div>
+  <div class="block">
+    <h3>What blocks a du'a</h3>
+    <div class="cards">
+      <div class="card"><b>Ḥarām food, drink, clothing</b><p>The dusty traveller raising his hands, "so how can he be answered?" (Muslim 1015). p. 11</p></div>
+      <div class="card"><b>A heedless heart</b><p>"Allah does not answer a du'a from a heedless, distracted heart" (Tirmidhī 3479). Like an arrow from a weak bow. p. 11</p></div>
+      <div class="card"><b>Haste</b><p>Saying "I asked and asked and was not answered", then giving up (Bukhārī 6340, Muslim 2735). p. 19</p></div>
+      <div class="card"><b>Asking for sin</b><p>Or for cutting ties of kinship (Muslim 2735). p. 19</p></div>
+      <div class="card"><b>Sins and oppression</b><p>The darkness of sins over the heart weakens the du'a. p. 11</p></div>
+    </div>
+  </div>
+  <div class="block" id="hands">
+    <h3>When the hands stay down</h3>
+    <div class="prose"><p>Raising the hands is from the etiquette of du'a (p. 21), but there are moments when the Sunnah is to keep them down.</p></div>
+    <div class="cards">
+      <div class="card"><b>During the Friday khuṭbah</b><p>When the imām makes du'a, the listeners say āmīn quietly, without raising their hands. The imām himself only points with his index finger: ʿUmārah ibn Ruʾaybah objected when a governor raised both hands on the minbar and said the Prophet ﷺ did no more than point with his finger.</p><p class="src">Muslim 874</p></div>
+      <div class="card"><b>Inside the prayer</b><p>Du'a in sujūd, between the two sajdahs and before the salām is made with the hands in their prayer position. Qunūt is the exception many scholars allow, based on reports from ʿUmar and others.</p><p class="src">Prayer of the Prophet ﷺ; qunūt: al-Bayhaqī</p></div>
+      <div class="card"><b>After the obligatory prayer</b><p>The Prophet ﷺ made dhikr and du'a after the prayer, but raising the hands for a du'a after every farḍ prayer, or a group du'a with the imām, is not reported from him. Scholars such as Ibn Bāz advised not to make it a habit.</p><p class="src">Fatāwā Ibn Bāz</p></div>
+    </div>
+    <div class="note"><b>When the hands go up:</b> du'a outside the prayer ("Your Lord is shy to send back empty the hands His servant raises to Him", Abū Dāwūd 1488, Tirmidhī 3556). In the prayer for rain they go up high, even in the khuṭbah: the Prophet ﷺ raised his hands and the people raised theirs with him (Bukhārī 1029, 1031). Scholars differ on some of these details, so follow what your imām or teacher teaches.</div>
+  </div>
+  <div class="block">
+    <h3>Mūsā asked, Hārūn said āmīn</h3>
+    <div class="prose">
+      <p>Mūsā made du'a against Firʿawn (Yūnus 10:88). Allah answered:</p>
+      <p class="ar">قَالَ قَدْ أُجِيبَت دَّعْوَتُكُمَا فَاسْتَقِيمَا</p>
+      <p>"Your du'a (of you two) has been answered, so remain upright" (Yūnus 10:89). Only Mūsā spoke the du'a, yet Allah said <i>your du'a, of you two</i>. The mufassirūn, as Ibn Kathīr reports from Abū al-ʿĀliyah, ʿIkrimah and others, explain: Mūsā supplicated and Hārūn said āmīn. Whoever says āmīn shares in the du'a.</p>
+      <p>Two lessons: make du'a together with someone, one asks and the other says āmīn. And the verse ends with <i>fastaqīmā</i>: being answered comes with staying upright.</p>
+    </div>
+    <blockquote><p>"When a Muslim makes du'a for his brother in his absence, an angel says: āmīn, and for you the same."</p><cite>Muslim 2732</cite></blockquote>
+  </div>
+  <div class="block">
+    <h3>Lines to keep</h3>
+    <blockquote><p>"I do not worry about the response, I worry about making the du'a. If I am inspired to make du'a, the response comes with it."</p><cite>ʿUmar ibn al-Khaṭṭāb, p. 38</cite></blockquote>
+    <blockquote><p>"Enough righteousness with du'a is like the salt that is enough for food."</p><cite>Abū Dharr, p. 13</cite></blockquote>
+    <blockquote><p>The secret is the state, not the words: a du'a is answered because of real need, sincerity, a good deed before it or a blessed time. A weapon cuts by the strength of the arm, not only its sharpness.</p><cite>Ibn al-Qayyim, pp. 29–31</cite></blockquote>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section class="view" id="v-setup" hidden>
+  <div class="block">
+    <h3>Location</h3>
+    <div class="grid2">
+      <div class="field"><label for="s-city">City</label><select id="s-city"></select></div>
+      <div class="field"><label for="s-lat">Latitude</label><input type="number" id="s-lat" step="0.0001"></div>
+      <div class="field"><label for="s-lng">Longitude</label><input type="number" id="s-lng" step="0.0001"></div>
+    </div>
+    <div class="src">Times use this device's time zone.</div>
+  </div>
+  <div class="block">
+    <h3>Calculation</h3>
+    <div class="grid2">
+      <div class="field"><label for="s-method">Method</label><select id="s-method"></select></div>
+      <div class="field"><label for="s-asr">ʿAṣr</label><select id="s-asr"><option value="1">Standard (Shāfiʿī, Mālikī, Ḥanbalī)</option><option value="2">Ḥanafī</option></select></div>
+    </div>
+  </div>
+  <div class="block">
+    <h3>Your mosque</h3>
+    <div class="grid2">
+      <div class="field"><label for="s-gap">Minutes from adhan to iqāmah</label><input type="number" id="s-gap" min="0" max="60"></div>
+      <div class="field"><label for="s-jum">Jumuʿah khuṭbah starts</label><input type="text" id="s-jum" placeholder="13:15"></div>
+    </div>
+    <div class="field"><label>Fine-tune each prayer (minutes, + or −)</label>
+      <div class="grid2" id="offsets"></div>
+    </div>
+  </div>
+  <div class="status" id="setSaved">Settings are saved on this device.</div>
+  <div class="block">
+    <h3>Bring over data from the Claude version</h3>
+    <div class="src">In the Claude version, open Settings and tap "Copy my data". Paste it here while signed in and tap Import. Existing entries with the same id are replaced.</div>
+    <textarea id="importBox" placeholder='{"duas":[…],"logs":{…},"checks":{…}}'></textarea>
+    <div class="dua-actions"><button class="btn primary" id="importBtn" type="button">Import</button></div>
+    <div class="status" id="importStatus"></div>
+  </div>
+</section>
+
+</div></main>
+
+<script>
+(function(){
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmt=d=>d&&!isNaN(d)?pad(d.getHours())+":"+pad(d.getMinutes()):"--:--";
+const addMin=(d,m)=>new Date(d.getTime()+m*60000);
+const dayKey=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const ls={get(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- settings ---------- */
+const CITIES={
+  "Kreuzlingen":[47.6505,9.1750],"Konstanz":[47.6779,9.1732],"Singen (Hohentwiel)":[47.7594,8.8403],
+  "Schaffhausen":[47.6960,8.6346],"Zürich":[47.3769,8.5417],"Winterthur":[47.4988,8.7237],"St. Gallen":[47.4245,9.3767],
+  "Frauenfeld":[47.5536,8.8986],"Basel":[47.5596,7.5886],"Bern":[46.9480,7.4474],"Stuttgart":[48.7758,9.1829],"Custom":null};
+const METHODS={
+  mwl:{name:"Muslim World League (18° / 17°)",fajr:18,isha:17},
+  diyanet:{name:"Diyanet, Turkey (18° / 17°)",fajr:18,isha:17},
+  isna:{name:"ISNA (15° / 15°)",fajr:15,isha:15},
+  egypt:{name:"Egyptian Authority (19.5° / 17.5°)",fajr:19.5,isha:17.5},
+  makkah:{name:"Umm al-Qurā (18.5° / 90 min)",fajr:18.5,ishaMin:90},
+  uoif:{name:"France UOIF (12° / 12°)",fajr:12,isha:12}};
+const PRAYERS=[["fajr","Fajr"],["dhuhr","Ẓuhr"],["asr","ʿAṣr"],["maghrib","Maghrib"],["isha","ʿIshāʾ"]];
+const DEF={city:"Kreuzlingen",lat:47.6505,lng:9.1750,method:"mwl",asr:1,gap:15,jum:"",off:{fajr:0,dhuhr:0,asr:0,maghrib:0,isha:0}};
+let S=Object.assign({},DEF,ls.get("dt-settings",{}));S.off=Object.assign({},DEF.off,S.off||{});
+
+/* ---------- prayer time calculation (PrayTimes-style) ---------- */
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const sin=d=>Math.sin(rad(d)),cos=d=>Math.cos(rad(d)),tan=d=>Math.tan(rad(d));
+const asin=x=>deg(Math.asin(x)),acos=x=>deg(Math.acos(x)),atan2=(y,x)=>deg(Math.atan2(y,x)),acot=x=>deg(Math.atan(1/x));
+const fixA=a=>{a=a-360*Math.floor(a/360);return a<0?a+360:a}, fixH=a=>{a=a-24*Math.floor(a/24);return a<0?a+24:a};
+function julian(y,m,d){if(m<=2){y-=1;m+=12}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5}
+function sunPos(jd){const D=jd-2451545,g=fixA(357.529+0.98560028*D),q=fixA(280.459+0.98564736*D),L=fixA(q+1.915*sin(g)+0.020*sin(2*g)),e=23.439-0.00000036*D;
+  const RA=atan2(cos(e)*sin(L),cos(L))/15;return{decl:asin(sin(e)*sin(L)),eqt:q/15-fixH(RA)}}
+function calcDay(date,lat,lng,method,asrF){
+  const y=date.getFullYear(),m=date.getMonth()+1,d=date.getDate();
+  const jd=julian(y,m,d)-lng/(15*24);
+  const mid=t=>fixH(12-sunPos(jd+t).eqt);
+  const ang=(a,t,ccw)=>{const dec=sunPos(jd+t).decl,n=mid(t);const v=(-sin(a)-sin(dec)*sin(lat))/(cos(dec)*cos(lat));if(v>1||v<-1)return NaN;const tt=acos(v)/15;return n+(ccw?-tt:tt)};
+  const asrT=(f,t)=>{const dec=sunPos(jd+t).decl;return ang(-acot(f+tan(Math.abs(lat-dec))),t)};
+  const M=METHODS[method]||METHODS.mwl;
+  let T={fajr:ang(M.fajr,5/24,true),sunrise:ang(0.833,6/24,true),dhuhr:mid(12/24),asr:asrT(asrF,13/24),sunset:ang(0.833,18/24)};
+  T.maghrib=T.sunset;T.isha=M.ishaMin?T.maghrib+M.ishaMin/60:ang(M.isha,18/24);
+  // high latitude: angle-based rule
+  const night=24-(T.sunset-T.sunrise);
+  const fP=M.fajr/60*night; if(isNaN(T.fajr)||(T.sunrise-T.fajr)>fP)T.fajr=T.sunrise-fP;
+  if(!M.ishaMin){const iP=M.isha/60*night; if(isNaN(T.isha)||(T.isha-T.sunset)>iP)T.isha=T.sunset+iP;}
+  const tz=-new Date(y,m-1,d,12).getTimezoneOffset()/60;
+  const out={};
+  for(const k in T){const h=T[k]+tz-lng/15;const base=new Date(y,m-1,d,0,0,0,0);out[k]=new Date(base.getTime()+Math.round(h*60)*60000)}
+  for(const [k] of PRAYERS){out[k]=addMin(out[k],Number(S.off[k])||0)}
+  return out;
+}
+
+/* ---------- windows of acceptance ---------- */
+const TAGS={
+  night:"Last third of the night", adhan:"Adhan to iqāmah", after:"End of the obligatory prayer",
+  khutbah:"Jumuʿah: khuṭbah to prayer", asrfri:"Friday's last hour", sujud:"In sujūd", fasting:"Before ifṭār", anytime:"Any time"};
+function jumStart(t){
+  const m=/^(\d{1,2}):(\d{2})$/.exec((S.jum||"").trim());
+  if(m){const d=new Date(t.dhuhr);d.setHours(+m[1],+m[2],0,0);return d}
+  return t.dhuhr;
+}
+function windows(now){
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const yest=addMin(today,-1440), tom=addMin(today,1440);
+  const asrF=Number(S.asr)||1;
+  const T=calcDay(today,S.lat,S.lng,S.method,asrF), Y=calcDay(yest,S.lat,S.lng,S.method,asrF), N=calcDay(tom,S.lat,S.lng,S.method,asrF);
+  const isFri=now.getDay()===5;
+  const W=[];
+  // last third of the night (the one ending at today's fajr, then tonight's)
+  const l1=new Date(T.fajr.getTime()-(T.fajr-Y.maghrib)/3);
+  const l2=new Date(N.fajr.getTime()-(N.fajr-T.maghrib)/3);
+  const lastThird=now<T.fajr?{start:l1,end:T.fajr,label:"Before Fajr"}:{start:l2,end:N.fajr,label:"Tonight"};
+  W.push({id:"night",tag:"night",start:lastThird.start,end:lastThird.end,title:"Last third of the night",
+    desc:lastThird.label+": Allah descends to the lowest heaven and says: who is calling on Me, that I may answer him?",src:"Bukhārī 1145, Muslim 758 · book p. 21",special:true,sortKey:now<T.fajr?0:99});
+  const gap=Number(S.gap)||0;
+  for(const [k,name] of PRAYERS){
+    let start=T[k], title=name, desc="At the adhan and until the iqāmah: \"The du'a between the adhan and the iqāmah is not rejected.\"", src="Abū Dāwūd 521, Tirmidhī 212 · book p. 21";
+    if(k==="dhuhr"&&isFri){continue}
+    W.push({id:k,tag:"adhan",start,end:addMin(start,Math.max(gap,3)),title:title+" adhan → iqāmah",desc,src,prayer:k});
+    const after=addMin(start,gap+7);
+    W.push({id:k+"-after",tag:"after",start:after,end:addMin(after,15),title:"End of "+name,desc:"\"Which du'a is most heard? In the last part of the night and at the end (dubur) of the obligatory prayers.\" Make it before the salām and after it.",src:"Tirmidhī 3499 · book p. 21",prayer:k,soft:true});
+  }
+  if(isFri){
+    const js=jumStart(T);
+    W.push({id:"khutbah",tag:"khutbah",start:js,end:addMin(js,50),title:"Jumuʿah: from the khuṭbah until the prayer ends",desc:"From when the imām sits on the minbar until the prayer is finished. Make du'a silently in your heart, between the two khuṭbahs and in the prayer. When the imām makes du'a in the khuṭbah, say āmīn quietly and keep your hands down (Muslim 874).",src:"Muslim 853 · book p. 21",special:true});
+    W.push({id:"asrfri",tag:"asrfri",start:addMin(T.maghrib,-60),end:T.maghrib,title:"Friday's last hour",desc:"\"Seek it in the last hour after ʿAṣr.\" Sit, remember Allah and ask until Maghrib.",src:"Abū Dāwūd 1048, Nasāʾī 1389 · book p. 21",special:true});
+  }
+  W.sort((a,b)=>a.start-b.start);
+  return {W,T,N,isFri};
+}
+
+/* ---------- Hijri ---------- */
+function hijri(d){
+  try{const f=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric"});
+    const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn",{day:"numeric",month:"numeric"}).formatToParts(d);
+    const g=t=>Number((p.find(x=>x.type===t)||{}).value);
+    return{text:f.format(d).replace(" AH"," AH"),day:g("day"),month:g("month")}}catch(e){return{text:"",day:0,month:0}}
+}
+
+/* ---------- du'a store ---------- */
+const LIB=[
+ {key:"lib-musa-combined",title:"My combined du'a",ar:"اللَّهُمَّ لَكَ الْحَمْدُ كُلُّهُ، وَصَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ. اللَّهُمَّ اهْدِ وَالِدَيَّ لِلْإِسْلَامِ، وَأَنْزِلِ السَّكِينَةَ فِي قُلُوبِهِمَا، وَقِنِي ظُلْمَهُمَا. وَبَارِكْ فِي زَوْجَتِي وَاجْعَلْهَا حَافِظَةً لِكِتَابِكَ، وَبَارِكْ لَنَا وَبَارِكْ عَلَيْنَا وَاجْمَعْ بَيْنَنَا فِي خَيْرٍ، وَجَنِّبْنَا الشَّيْطَانَ وَجَنِّبِ الشَّيْطَانَ مَا رَزَقْتَنَا، وَهَبْ لَنَا ذُرِّيَّةً طَيِّبَةً تَرْضَى عَنْهَا. وَتَوَفَّنَا وَأَهْلَنَا مُسْلِمِينَ، وَقَوِّنَا فِي دِينِنَا وَدُنْيَانَا. يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ، وَاهْدِنِي لِمَا يَنْفَعُنِي، وَارْزُقْنِي عِلْمًا نَافِعًا وَبَدَنًا قَوِيًّا وَقَلْبًا سَلِيمًا، وَاشْفِ قَلْبِي وَاسْلُلْ سَخِيمَتَهُ. وَاعْقِدْ لِسَانِي عَنْ كُلِّ سُوءٍ وَلَا تُطْلِقْهُ إِلَّا بِخَيْرٍ. وَاجْعَلْنِي مِمَّنْ سَلِمَ النَّاسُ مِنْ لِسَانِهِ وَيَدِهِ، وَأَرْضِ عَنِّي كُلَّ مَنْ ظَلَمْتُهُ. وَاجْعَلْ عَمَلِي كُلَّهُ صَالِحًا، وَاجْعَلْهُ لِوَجْهِكَ خَالِصًا، وَلَا تَجْعَلْ لِأَحَدٍ فِيهِ شَيْئًا. وَأَذْهِبْ هَمِّي، وَاقْسِمْ لِي مِنْ خَشْيَتِكَ مَا تَحُولُ بِهِ بَيْنِي وَبَيْنَ مَعَاصِيكَ، وَزِدْنِي رَجَاءً فِيكَ وَتَوَكُّلًا عَلَيْكَ. رَبِّ أَوْزِعْنِي أَنْ أَشْكُرَ نِعْمَتَكَ الَّتِي أَنْعَمْتَ عَلَيَّ، وَزِدْنِي مِنْ فَضْلِكَ، وَاشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي، وَاجْعَلْنِي قَوِيًّا أَمِينًا كَمَا جَعَلْتَ مُوسَى عَلَيْهِ السَّلَامُ. وَصَلَّى اللَّهُ وَسَلَّمَ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ. آمِينَ",tr:"Praise and ṣalāh · guidance and tranquility for my parents, protect me from their wrong · barakah on my wife, make her a ḥāfiẓah, bless our marriage, keep Shayṭān away, give us good offspring You are pleased with · let us and our family die as Muslims, strong in dīn and dunya · keep my heart firm, guide me to what benefits me: useful knowledge, a strong body, a sound heart; cure my heart · tie my tongue from evil, release it only for good · let people be safe from my tongue and hand, make those I wronged pleased with me · make all my deeds sincerely for You alone · remove my worry, give me fear of You, hope and trust · make me grateful for Your blessings and give more · open my chest, ease my affair, make me strong and trustworthy like Mūsā.",src:"Built from your own list, with wording from al-Furqān, Yūsuf, Ṭāhā, al-Qaṣaṣ, an-Naml and ḥadīth",tags:["night","sujud","asrfri","adhan"]},
+ {key:"lib-ahad",title:"By His Oneness (the Greatest Name)",ar:"اللَّهُمَّ إِنِّي أَسْأَلُكَ بِأَنِّي أَشْهَدُ أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ، الْأَحَدُ الصَّمَدُ، الَّذِي لَمْ يَلِدْ وَلَمْ يُولَدْ، وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ",tr:"O Allah, I ask You by my testifying that You are Allah, none is worthy of worship but You, the One, the Self-Sufficient, who did not beget and was not begotten, and to whom no one is equal. Then ask for what you need.",src:"Abū Dāwūd 1493, Tirmidhī 3475 · p. 23",tags:["anytime","sujud"]},
+ {key:"lib-hamd",title:"By His praise (the Greatest Name)",ar:"اللَّهُمَّ إِنِّي أَسْأَلُكَ بِأَنَّ لَكَ الْحَمْدَ، لَا إِلَٰهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، الْمَنَّانُ، بَدِيعُ السَّمَاوَاتِ وَالْأَرْضِ، يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",tr:"O Allah, I ask You because all praise is Yours, none is worthy of worship but You alone without partner, the Bestower, Originator of the heavens and the earth, O Possessor of Majesty and Honour.",src:"Abū Dāwūd 1495, Nasāʾī 1300 · p. 23",tags:["anytime","after"]},
+ {key:"lib-hayy",title:"Yā Ḥayy yā Qayyūm",ar:"يَا حَيُّ يَا قَيُّومُ، بِرَحْمَتِكَ أَسْتَغِيثُ",tr:"O Ever-Living, O Sustainer of all, by Your mercy I call for help. The Prophet ﷺ said this when something distressed him.",src:"Tirmidhī 3524 · p. 25",tags:["anytime","night"]},
+ {key:"lib-yunus",title:"The du'a of Yūnus",ar:"لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",tr:"None is worthy of worship but You, glory be to You, I have been among the wrongdoers. \"No Muslim calls with it for anything except that Allah answers him.\"",src:"Tirmidhī 3505, al-Ḥākim · p. 25",tags:["anytime","sujud"]},
+ {key:"lib-karb",title:"In times of hardship",ar:"لَا إِلَٰهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَٰهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لَا إِلَٰهَ إِلَّا اللَّهُ رَبُّ السَّمَاوَاتِ وَرَبُّ الْأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ",tr:"None is worthy of worship but Allah, the Mighty, the Forbearing. None but Allah, Lord of the Mighty Throne. None but Allah, Lord of the heavens, Lord of the earth and Lord of the Noble Throne.",src:"Bukhārī 6346, Muslim 2730 · p. 26",tags:["anytime"]},
+ {key:"lib-hamm",title:"Against worry and grief",ar:"اللَّهُمَّ إِنِّي عَبْدُكَ، ابْنُ عَبْدِكَ، ابْنُ أَمَتِكَ، نَاصِيَتِي بِيَدِكَ، مَاضٍ فِيَّ حُكْمُكَ، عَدْلٌ فِيَّ قَضَاؤُكَ، أَسْأَلُكَ بِكُلِّ اسْمٍ هُوَ لَكَ، سَمَّيْتَ بِهِ نَفْسَكَ، أَوْ أَنْزَلْتَهُ فِي كِتَابِكَ، أَوْ عَلَّمْتَهُ أَحَدًا مِنْ خَلْقِكَ، أَوِ اسْتَأْثَرْتَ بِهِ فِي عِلْمِ الْغَيْبِ عِنْدَكَ، أَنْ تَجْعَلَ الْقُرْآنَ رَبِيعَ قَلْبِي، وَنُورَ صَدْرِي، وَجِلَاءَ حُزْنِي، وَذَهَابَ هَمِّي",tr:"O Allah, I am Your servant, son of Your servant, son of Your maidservant; my forelock is in Your hand… make the Qur'an the spring of my heart, the light of my chest, the removal of my sadness and the end of my worry. \"Whoever hears it should learn it.\"",src:"Aḥmad 3712 · p. 27",tags:["night","anytime"]},
+ {key:"lib-jalal",title:"Yā Dhal-Jalāli wal-Ikrām",ar:"يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",tr:"O Possessor of Majesty and Honour. \"Hold on to it\" (alizzū bi-yā dhal-jalāli wal-ikrām).",src:"Aḥmad, al-Ḥākim · p. 24",tags:["anytime","sujud"]}
+];
+let duas=[], store=null, uid=null, colRef=null, mode="loading";
+const statusEl=()=>$("#storeStatus");
+/* ---------- Firebase (Google sign-in + Firestore: users/{uid}/entries) ---------- */
+const FB_V="12.18.0";
+let fb=null, unsub=null;
+function setSync(t){$("#sync").textContent=t}
+function applyDocs(docs){
+  duas=docs.filter(x=>x.data.kind==="dua").map(x=>Object.assign({id:x.id},x.data)).sort((a,b)=>(a.created||0)-(b.created||0));
+  const nl={},nc={};docs.forEach(x=>{const v=x.data;if(v.kind==="log"&&v.date)nl[v.date]=Object.assign({},v.ticks||{});if(v.kind==="check"&&v.date)nc[v.date]=JSON.parse(JSON.stringify(v.slots||{}))});
+  logs=nl;checks=nc;renderAll();
+}
+function renderAll(){renderMine();renderNow();renderTrk();renderChk()}
+function loadLocal(){
+  mode="local";colRef=null;duas=ls.get("dt-duas",[]);logs=ls.get("dt-logs",{});checks=ls.get("dt-checks",{});
+  statusEl().textContent="Saved on this device only. Sign in with Google (top right) to keep it in your account.";
+  $("#trkStatus").textContent="Ticks are saved on this device only. Sign in with Google to sync them.";
+  renderAll();
+}
+function writeAll(data){
+  const jobs=[];
+  (data.duas||[]).forEach(d=>{if(d&&d.id)jobs.push(colRef.doc(String(d.id)).set(Object.assign(stripId(d),{kind:"dua"})))});
+  Object.entries(data.logs||{}).forEach(([dk,t])=>jobs.push(colRef.doc("log-"+dk).set({kind:"log",date:dk,ticks:t||{}})));
+  Object.entries(data.checks||{}).forEach(([dk,sl])=>jobs.push(colRef.doc("chk-"+dk).set({kind:"check",date:dk,slots:sl||{}})));
+  return Promise.all(jobs).then(()=>jobs.length);
+}
+async function initStore(){
+  let cfg=null;
+  try{cfg=(await import("./firebase-config.js")).firebaseConfig}catch(e){}
+  if(!cfg||!cfg.apiKey||String(cfg.apiKey).startsWith("PASTE")){loadLocal();setSync("Firebase not set up yet");return}
+  try{
+    const app=await import(`https://www.gstatic.com/firebasejs/${FB_V}/firebase-app.js`);
+    const auth=await import(`https://www.gstatic.com/firebasejs/${FB_V}/firebase-auth.js`);
+    const fs=await import(`https://www.gstatic.com/firebasejs/${FB_V}/firebase-firestore.js`);
+    const a=app.initializeApp(cfg);
+    const db=fs.initializeFirestore(a,{localCache:fs.persistentLocalCache()});
+    const au=auth.getAuth(a);fb={auth,fs,db,au};
+    const btn=$("#authBtn");btn.hidden=false;
+    btn.onclick=async()=>{
+      if(uid){await auth.signOut(au);return}
+      const prov=new auth.GoogleAuthProvider();
+      try{await auth.signInWithPopup(au,prov)}catch(e){if(e&&e.code==="auth/popup-blocked")auth.signInWithRedirect(au,prov);else setSync("Sign-in failed, try again")}
+    };
+    auth.getRedirectResult(au).catch(()=>{});
+    auth.onAuthStateChanged(au,user=>{
+      if(unsub){unsub();unsub=null}
+      if(!user){uid=null;loadLocal();btn.textContent="Sign in with Google";setSync("Not signed in");return}
+      uid=user.uid;btn.textContent="Sign out";subscribe();
+    });
+  }catch(e){loadLocal();setSync("Cloud unavailable, saved on this device")}
+}
+let migrated=false;
+function subscribe(){
+  const {fs,db}=fb;
+  const local={duas:ls.get("dt-duas",[]),logs:ls.get("dt-logs",{}),checks:ls.get("dt-checks",{})};
+  const hadLocal=local.duas.length||Object.keys(local.logs).length||Object.keys(local.checks).length;
+  const ref=fs.collection(db,"users",uid,"entries");
+  colRef={doc:id=>({set:data=>fs.setDoc(fs.doc(ref,id),JSON.parse(JSON.stringify(data))),delete:()=>fs.deleteDoc(fs.doc(ref,id))})};
+  mode="db";setSync("Syncing…");
+  const timer=setTimeout(()=>setSync("Offline, showing last copy"),10000);
+  unsub=fs.onSnapshot(ref,{includeMetadataChanges:true},snap=>{
+    if(!snap.metadata.fromCache){clearTimeout(timer);setSync("● Synced · private")}
+    if(!snap.metadata.fromCache&&snap.empty&&hadLocal&&!migrated){migrated=true;writeAll(local).catch(()=>{});return}
+    statusEl().textContent="Saved to your Google account. Only you can see this list.";
+    $("#trkStatus").textContent="Your ticks are synced to your Google account.";
+    applyDocs(snap.docs.map(d=>({id:d.id,data:d.data()})));
+  },err=>{clearTimeout(timer);setSync("Sync error "+(err&&err.code||""))});
+}
+$("#importBtn").addEventListener("click",async()=>{
+  const st=$("#importStatus");
+  if(mode!=="db"){st.textContent="Sign in with Google first, then import.";return}
+  let data;try{data=JSON.parse($("#importBox").value)}catch(e){st.textContent="That text isn't valid. Copy it again from the Claude version and paste all of it.";return}
+  st.textContent="Importing…";
+  try{const n=await writeAll(data);st.textContent="Imported "+n+" entries.";$("#importBox").value=""}catch(e){st.textContent="Import failed ("+(e.code||"error")+"). Check your connection and try again."}
+});
+function uidGen(){return "d"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+async function saveDua(d){
+  if(mode==="db"){try{await colRef.doc(d.id).set(stripId(d))}catch(e){statusEl().textContent="Couldn't save. Check your connection and try again."}}
+  else{const i=duas.findIndex(x=>x.id===d.id);if(i>=0)duas[i]=d;else duas.push(d);ls.set("dt-duas",duas);renderMine();renderNow()}
+}
+async function removeDua(id){
+  if(mode==="db"){try{await colRef.doc(id).delete()}catch(e){statusEl().textContent="Couldn't delete. Try again."}}
+  else{duas=duas.filter(x=>x.id!==id);ls.set("dt-duas",duas);renderMine();renderNow()}
+}
+function stripId(d){const o=Object.assign({},d);delete o.id;return o}
+
+/* ---------- render: header + dial ---------- */
+let cur=null;
+function renderHeader(now){
+  const h=hijri(now);
+  $("#hijri").textContent=h.text;
+  const day=now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+  $("#dayTitle").innerHTML=esc(day)+(cur.isFri?'<span class="jumuah-pill">Jumuʿah</span>':"");
+  $("#placeLine").textContent=(S.city==="Custom"?"Custom location":S.city)+" · "+METHODS[S.method].name.split(" (")[0];
+  $("#clock").textContent=fmt(now);
+}
+function renderDial(now){
+  const T=cur.T, svg=$("#dial");
+  const day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  const x=d=>Math.max(0,Math.min(1000,(d.getTime()-day0)/864e5*1000));
+  let s='<rect x="0" y="18" width="1000" height="10" rx="5" fill="rgba(255,255,255,.12)"/>';
+  // daylight
+  s+=`<rect x="${x(T.sunrise)}" y="18" width="${x(T.sunset)-x(T.sunrise)}" height="10" fill="rgba(255,255,255,.22)"/>`;
+  for(const w of cur.W){if(w.soft)continue;
+    const a=x(w.start),b=x(w.end<w.start?addMin(w.start,1):w.end);
+    if(w.end.getTime()>day0+864e5&&w.start.getTime()>day0+864e5)continue;
+    s+=`<rect x="${a}" y="16" width="${Math.max(4,b-a)}" height="14" rx="3" fill="var(--gold)" opacity="${w.special?1:.75}"/>`;}
+  // early-morning last third (always draw today's)
+  for(const [k,name] of PRAYERS){const px=x(T[k]);s+=`<text x="${px}" y="44" font-size="10" text-anchor="middle" fill="var(--band-muted)" font-family="Figtree, sans-serif">${name.replace(/[ʿʾ]/g,"")}</text>`}
+  const nx=x(now);s+=`<line x1="${nx}" x2="${nx}" y1="8" y2="34" stroke="var(--band-ink)" stroke-width="2"/><circle cx="${nx}" cy="8" r="3.5" fill="var(--band-ink)"/>`;
+  svg.innerHTML=s;
+}
+function forTag(tag){return duas.filter(d=>(d.tags||[]).includes(tag))}
+function renderNow(){
+  if(!cur)return;const now=new Date();
+  const active=cur.W.filter(w=>now>=w.start&&now<w.end);
+  const next=cur.W.filter(w=>w.start>now).sort((a,b)=>a.start-b.start)[0];
+  const box=$("#nowcard");
+  let h="";
+  if(active.length){
+    const w=active.find(x=>x.special)||active[0];
+    const left=Math.max(0,Math.round((w.end-now)/60000));
+    h+=`<div class="state"><span class="dot"></span>Now · a time of acceptance</div><h2>${esc(w.title)}</h2><div>${esc(w.desc)}</div><div class="countdown">Until ${fmt(w.end)} · ${left} min left</div>`;
+    const mine=forTag(w.tag).concat(forTag("anytime").slice(0,0));
+    h+=mine.length?`<div class="eyebrow" style="margin-top:4px">Your du'as for this moment</div>`+mine.map(d=>`<div><b>${esc(d.title)}</b>${d.ar?`<div class="ar" style="font-size:1.2rem">${esc(d.ar)}</div>`:""}</div>`).join(""):`<div class="src">Tag du'as with "${esc(TAGS[w.tag])}" in My du'as to see them here.</div>`;
+  }else if(next){
+    const mins=Math.round((next.start-now)/60000);const hh=Math.floor(mins/60),mm=mins%60;
+    h+=`<div class="state next"><span class="dot"></span>Next time of acceptance</div><h2>${esc(next.title)}</h2><div>${esc(next.desc)}</div><div class="countdown">At ${fmt(next.start)} · in ${hh?hh+" h ":""}${mm} min</div>`;
+    const mine=forTag(next.tag);
+    if(mine.length)h+=`<div class="src">${mine.length} of your du'as are tagged for this time.</div>`;
+    h+=`<div class="src">Between the times, du'a in sujūd is always close: "The nearest a servant is to his Lord is while in prostration, so make much du'a."</div>`;
+  }
+  box.innerHTML=h;
+}
+function renderTimes(){
+  const now=new Date(), list=$("#timeList");
+  const rows=cur.W.map(w=>{
+    const st=now>=w.end?"past":(now>=w.start?"now":"");
+    const label=st==="now"?"Now":st==="past"?"Passed":"Upcoming";
+    return `<div class="row ${st} ${w.special?"special":""}"><div class="t">${fmt(w.start)}<small>to ${fmt(w.end)}</small></div><div class="what"><b>${esc(w.title)}</b><p>${esc(w.desc)}</p><p class="src">${esc(w.src)}</p></div><span class="tag">${label}</span></div>`});
+  list.innerHTML=rows.join("");
+}
+function renderSpecial(){
+  const now=new Date(),h=hijri(now),box=$("#specialDay");let parts=[];
+  if(cur.isFri){
+    parts.push(`<h3>Jumuʿah today</h3><div class="note">Ibn al-Qayyim names two Friday moments: from when the imām sits on the minbar until the prayer ends, and the last hour after ʿAṣr (${fmt(addMin(cur.T.maghrib,-60))}–${fmt(cur.T.maghrib)}).</div>`);
+    const items=[["fri-ghusl","Ghusl before Jumuʿah","Bukhārī 877"],["fri-early","Go early to the masjid","Bukhārī 881"],["fri-kahf","Recite Sūrat al-Kahf","al-Ḥākim, al-Bayhaqī"],["fri-salawat","Send much ṣalāh on the Prophet ﷺ","Abū Dāwūd 1047"],["fri-khutbah","Du'a silently during the khuṭbah window","Muslim 853"],["fri-amin","Āmīn quietly to the imām's du'a, hands down","Muslim 874"],["fri-asr","Sit in dhikr and du'a from "+fmt(addMin(cur.T.maghrib,-60))+" until Maghrib","Abū Dāwūd 1048"]];
+    const done=ls.get("dt-fri-"+dayKey(now),{});
+    parts.push(`<div class="check" id="friCheck">`+items.map(([k,t,s])=>`<label><input type="checkbox" data-k="${k}" ${done[k]?"checked":""}><span>${esc(t)}<small>${esc(s)}</small></span></label>`).join("")+`</div>`);
+  }
+  const wd=now.getDay();
+  if(wd===1||wd===4)parts.push(`<div class="note"><b>${wd===1?"Monday":"Thursday"}.</b> If you are fasting today, your du'a until you break the fast is not rejected (Tirmidhī 3598). Keep your list ready before Maghrib at ${fmt(cur.T.maghrib)}.</div>`);
+  if(h.month===9){parts.push(`<div class="note"><b>Ramaḍān.</b> The fasting person's du'a is not rejected until ifṭār (${fmt(cur.T.maghrib)}).${h.day>=20?" These are the last ten nights: seek Laylat al-Qadr and say: <span class=\"ar\" style=\"font-size:1.1rem\">اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي</span> (Tirmidhī 3513)":""}</div>`)}
+  if(h.month===12&&h.day===9)parts.push(`<div class="note"><b>Day of ʿArafah.</b> "The best du'a is the du'a of the Day of ʿArafah" (Tirmidhī 3585).</div>`);
+  if(h.month===12&&h.day===8)parts.push(`<div class="note">Tomorrow is the Day of ʿArafah. Prepare your list tonight.</div>`);
+  box.innerHTML=parts.join("");box.hidden=!parts.length;
+  const fc=$("#friCheck");if(fc)fc.addEventListener("change",e=>{const k=e.target.dataset.k;const key="dt-fri-"+dayKey(new Date());const d=ls.get(key,{});d[k]=e.target.checked;ls.set(key,d)});
+}
+function renderAnytime(){
+  const c=[["In sujūd","\"The nearest a servant is to his Lord is in prostration, so make much du'a.\"","Muslim 482"],
+    ["For your brother, in his absence","An angel says: āmīn, and for you the same.","Muslim 2732"],
+    ["When you are travelling","The traveller's du'a is answered.","Abū Dāwūd 1536, Tirmidhī 1905"],
+    ["When you are wronged","The du'a of the oppressed has no veil between it and Allah.","Bukhārī 1496"],
+    ["A parent for the child","Answered without doubt.","Abū Dāwūd 1536"],
+    ["Together: one asks, one says āmīn","Mūsā asked, Hārūn said āmīn: \"Your du'a (of you two) is answered.\"","Yūnus 10:89"]];
+  $("#anytime").innerHTML=c.map(([t,p,s])=>`<div class="card"><b>${esc(t)}</b><p>${esc(p)}</p><p class="src">${esc(s)}</p></div>`).join("");
+}
+
+/* ---------- render: my du'as ---------- */
+function tagChips(tags){return (tags||[]).map(t=>`<span class="tag">${esc(TAGS[t]||t)}</span>`).join("")}
+function renderMine(){
+  const today=dayKey(new Date()), box=$("#myList");
+  if(mode==="loading"){box.innerHTML="";}
+  else if(!duas.length){box.innerHTML=`<div class="empty"><b style="color:var(--ink)">Your list is empty</b><span>Add the du'as you want to make: for yourself, your wife, your parents, your plans. Tag each one with its best moment and it appears on the Today screen at that time.</span><div class="dua-actions"><button class="btn primary" data-act="open">Add your first du'a</button><button class="btn" data-act="addlib4">Add the 4 Greatest-Name du'as from the kitab</button></div></div>`}
+  else{
+    const saidN=duas.filter(d=>d.lastSaid===today).length;
+    box.innerHTML=`<div class="src">${saidN} of ${duas.length} made today.</div>`+duas.map(d=>`<article class="dua"><div class="dua-head"><b>${esc(d.title)}</b><button class="btn ${d.lastSaid===today?"said":""}" data-act="said" data-id="${esc(d.id)}" aria-pressed="${d.lastSaid===today}">${d.lastSaid===today?"Made today ✓":"Mark as made"}</button></div>${d.ar?`<div class="ar">${esc(d.ar)}</div>`:""}${d.tr?`<p class="tr">${esc(d.tr)}</p>`:""}${d.src?`<div class="src">${esc(d.src)}</div>`:""}<div class="tags">${tagChips(d.tags)}</div><div class="dua-actions"><button class="btn ghost" data-act="edit" data-id="${esc(d.id)}">Edit</button><button class="btn ghost" data-act="del" data-id="${esc(d.id)}">${pendingDel===d.id?"Tap again to delete":"Delete"}</button></div></article>`).join("");
+  }
+  renderLib();
+}
+function renderLib(){
+  const have=new Set(duas.map(d=>d.libKey).filter(Boolean));
+  $("#library").innerHTML=LIB.map(l=>`<article class="dua"><div class="dua-head"><b>${esc(l.title)}</b><button class="btn ${have.has(l.key)?"said":""}" data-act="addlib" data-key="${l.key}" ${have.has(l.key)?"disabled":""}>${have.has(l.key)?"In my list":"Add to my list"}</button></div><div class="ar">${esc(l.ar)}</div><p class="tr">${esc(l.tr)}</p><div class="src">${esc(l.src)}</div></article>`).join("");
+}
+let editing=null, pendingDel=null;
+function openForm(d){
+  editing=d||null;$("#addForm").hidden=false;
+  $("#f-title").value=d?d.title||"":"";$("#f-ar").value=d?d.ar||"":"";$("#f-tr").value=d?d.tr||"":"";
+  const tags=d?d.tags||[]:["anytime"];
+  $("#f-tags").innerHTML=Object.keys(TAGS).map(k=>`<label><input type="checkbox" value="${k}" ${tags.includes(k)?"checked":""}>${esc(TAGS[k])}</label>`).join("");
+  $("#saveBtn").textContent=d?"Save changes":"Save du'a";$("#f-title").focus();
+}
+function closeForm(){$("#addForm").hidden=true;editing=null}
+$("#openAdd").addEventListener("click",()=>openForm());
+$("#cancelAdd").addEventListener("click",closeForm);
+$("#addForm").addEventListener("submit",async e=>{
+  e.preventDefault();const title=$("#f-title").value.trim();if(!title)return;
+  const tags=[...document.querySelectorAll("#f-tags input:checked")].map(i=>i.value);
+  const d=Object.assign({},editing||{id:uidGen(),kind:"dua",created:Date.now()},{title,ar:$("#f-ar").value.trim(),tr:$("#f-tr").value.trim(),tags:tags.length?tags:["anytime"]});
+  closeForm();await saveDua(d);
+});
+function addLib(key){const l=LIB.find(x=>x.key===key);if(!l||duas.some(d=>d.libKey===key))return Promise.resolve();
+  return saveDua({id:uidGen(),kind:"dua",created:Date.now(),libKey:l.key,title:l.title,ar:l.ar,tr:l.tr,src:l.src,tags:l.tags});}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const act=b.dataset.act,id=b.dataset.id;
+  if(act==="open")openForm();
+  if(act==="addlib"){b.disabled=true;await addLib(b.dataset.key)}
+  if(act==="addlib4"){b.disabled=true;for(const k of ["lib-ahad","lib-hamd","lib-hayy","lib-yunus"]){await addLib(k)}}
+  if(act==="edit")openForm(duas.find(d=>d.id===id));
+  if(act==="said"){const d=duas.find(x=>x.id===id);if(!d)return;const t=dayKey(new Date());await saveDua(Object.assign({},d,{lastSaid:d.lastSaid===t?"":t}))}
+  if(act==="del"){if(pendingDel===id){pendingDel=null;await removeDua(id)}else{pendingDel=id;renderMine();setTimeout(()=>{if(pendingDel===id){pendingDel=null;renderMine()}},4000)}}
+});
+
+/* ---------- adab checklist ---------- */
+const ADAB=[["Presence of heart","Know what you are asking for and mean it"],["One of the special times","Last third of the night, adhan to iqāmah, end of the prayers, the Friday hours"],["Humility and real need","Brokenness and neediness before your Lord"],["Facing the qiblah, in wuḍūʾ",""],["Raise your hands","Outside the prayer and the khuṭbah. See \"When the hands stay down\" below"],["Begin with praise of Allah","Ḥamd and thanāʾ"],["Ṣalāh on the Prophet ﷺ","Before you ask"],["Tawbah and istighfār","Before you ask"],["Ask by His Oneness, Names and Attributes","e.g. the Greatest-Name du'as in My du'as"],["Ask with hope and fear, and insist","Repeat it, do not hurry"],["Give ṣadaqah","Before an important du'a"]];
+function renderAdab(){const s=ls.get("dt-adab",{});$("#adabCheck").innerHTML=ADAB.map(([t,sm],i)=>`<label><input type="checkbox" data-i="${i}" ${s[i]?"checked":""}><span>${esc(t)}${sm?`<small>${esc(sm)}</small>`:""}</span></label>`).join("")}
+$("#adabCheck").addEventListener("change",e=>{const s=ls.get("dt-adab",{});s[e.target.dataset.i]=e.target.checked;ls.set("dt-adab",s)});
+$("#resetCheck").addEventListener("click",()=>{ls.set("dt-adab",{});renderAdab()});
+
+/* ---------- settings form ---------- */
+function renderSettings(){
+  $("#s-city").innerHTML=Object.keys(CITIES).map(c=>`<option ${c===S.city?"selected":""}>${esc(c)}</option>`).join("");
+  $("#s-method").innerHTML=Object.entries(METHODS).map(([k,m])=>`<option value="${k}" ${k===S.method?"selected":""}>${esc(m.name)}</option>`).join("");
+  $("#s-asr").value=String(S.asr);$("#s-lat").value=S.lat;$("#s-lng").value=S.lng;$("#s-gap").value=S.gap;$("#s-jum").value=S.jum||"";
+  $("#offsets").innerHTML=PRAYERS.map(([k,n])=>`<div class="field"><label for="o-${k}">${esc(n)}</label><input type="number" id="o-${k}" data-k="${k}" value="${Number(S.off[k])||0}" step="1"></div>`).join("");
+}
+function saveSettings(){ls.set("dt-settings",S);recompute();$("#setSaved").textContent="Saved. Times updated."}
+$("#s-city").addEventListener("change",e=>{S.city=e.target.value;const c=CITIES[S.city];if(c){S.lat=c[0];S.lng=c[1];$("#s-lat").value=S.lat;$("#s-lng").value=S.lng}saveSettings()});
+["s-lat","s-lng"].forEach(id=>$("#"+id).addEventListener("change",e=>{const v=parseFloat(e.target.value);if(isNaN(v))return;S[id==="s-lat"?"lat":"lng"]=v;S.city="Custom";$("#s-city").value="Custom";saveSettings()}));
+$("#s-method").addEventListener("change",e=>{S.method=e.target.value;saveSettings()});
+$("#s-asr").addEventListener("change",e=>{S.asr=Number(e.target.value);saveSettings()});
+$("#s-gap").addEventListener("change",e=>{S.gap=Math.max(0,Math.min(60,Number(e.target.value)||0));saveSettings()});
+$("#s-jum").addEventListener("change",e=>{S.jum=e.target.value.trim();saveSettings()});
+$("#offsets").addEventListener("change",e=>{const k=e.target.dataset.k;if(!k)return;S.off[k]=Number(e.target.value)||0;saveSettings()});
+
+/* ---------- prayer tracker ---------- */
+let logs={}; const logChains={};
+const HAB=[
+ {g:"Farḍ on time",items:[["fajr","Fajr"],["mid","Ẓuhr"],["asr","ʿAṣr"],["maghrib","Maghrib"],["isha","ʿIshāʾ"]]},
+ {g:"Sunnah",items:[["s_fajr","Sunnah of Fajr","2 before"],["s_dhuhr","Sunnah of Ẓuhr","4 before, 2 after"],["s_maghrib","Sunnah of Maghrib","2 after"],["s_isha","Sunnah of ʿIshāʾ","2 after"],["witr","Witr","odd rakʿahs at night"]]},
+ {g:"Night",items:[["sleep4","4 rakʿahs before sleep","after ʿIshāʾ"],["qiyam","Qiyām al-layl","night prayer"]]}];
+const startOfDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
+const isFriD=d=>d.getDay()===5;
+function keyFor(k,d){return k==="mid"?(isFriD(d)?"jumuah":"dhuhr"):k}
+function labelFor(k,label,sub,d){
+  if(k==="mid"&&isFriD(d))return["Jumuʿah",sub];
+  if(k==="s_dhuhr"&&isFriD(d))return["Sunnah of Jumuʿah","after the prayer"];
+  return[label,sub]}
+function trkDate(now){return(cur&&now<cur.T.fajr)?addMin(startOfDay(now),-1440):startOfDay(now)}
+const isOn=(d,k)=>!!(logs[dayKey(d)]||{})[keyFor(k,d)];
+const ALLK=HAB.flatMap(g=>g.items.map(i=>i[0]));
+function persistLog(dk){
+  const ticks=Object.assign({},logs[dk]||{});
+  if(mode==="db"&&colRef){const id="log-"+dk;
+    logChains[id]=(logChains[id]||Promise.resolve()).then(()=>colRef.doc(id).set({kind:"log",date:dk,ticks})).catch(()=>{$("#trkStatus").textContent="Couldn't save that tick. Check your connection and tap again."});}
+  else ls.set("dt-logs",logs);
+}
+function toggleTick(dk,k){const l=Object.assign({},logs[dk]||{});l[k]=!l[k];if(!l[k])delete l[k];logs[dk]=l;renderTrk();persistLog(dk)}
+function tickBtn(d,k,label,sub){const key=keyFor(k,d),on=!!(logs[dayKey(d)]||{})[key];
+  return `<button class="tick" data-act="tick" data-date="${dayKey(d)}" data-k="${key}" aria-pressed="${on}"><span class="box">✓</span><span><b>${esc(label)}</b>${sub?`<small>${esc(sub)}</small>`:""}</span></button>`}
+function streak(test,from,stepDays){
+  let d=new Date(from),n=0;const step=stepDays||1;
+  if(!test(d))d=addMin(d,-1440*step);
+  for(let i=0;i<500&&test(d);i++){n++;d=addMin(d,-1440*step)}
+  return n}
+function renderTrk(){
+  if(!cur)return;
+  const now=new Date(),d=trkDate(now),dk=dayKey(d);
+  const T=calcDay(d,S.lat,S.lng,S.method,Number(S.asr)||1);
+  const tm={fajr:T.fajr,mid:isFriD(d)?jumStart(T):T.dhuhr,asr:T.asr,maghrib:T.maghrib,isha:T.isha};
+  const done=ALLK.filter(k=>isOn(d,k)).length;
+  $("#trkDateLbl").textContent=d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+  $("#trkTitle").textContent=dk===dayKey(now)?"Today":"Last night counts for yesterday";
+  $("#trkScore").innerHTML=`${done}<small> / ${ALLK.length}</small>`;
+  $("#trkGroups").innerHTML=HAB.map(g=>`<div class="block" style="gap:8px"><div class="eyebrow">${esc(g.g)}</div><div class="tgrid">${g.items.map(([k,l,sub])=>{const [L,Sb]=labelFor(k,l,sub,d);return tickBtn(d,k,L,g.g==="Farḍ on time"?fmt(tm[k]):Sb)}).join("")}</div></div>`).join("");
+  // mini row on Today
+  const fard=HAB[0].items;const fd=fard.filter(([k])=>isOn(d,k)).length;
+  $("#miniTrk").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h3>Prayed on time</h3><button class="btn ghost" data-act="gotrk">${done} of ${ALLK.length} ticked · all habits</button></div><div class="mini">${fard.map(([k,l])=>{const [L]=labelFor(k,l,"",d);return tickBtn(d,k,L,"")}).join("")}</div>`;
+  // week grid
+  const days=[];for(let i=6;i>=0;i--)days.push(addMin(d,-1440*i));
+  let h=`<thead><tr><th></th>${days.map((x,i)=>`<th class="${i===6?"cur":""} ${isFriD(x)?"fri":""}">${x.toLocaleDateString("en-GB",{weekday:"short"})}<br>${x.getDate()}</th>`).join("")}</tr></thead><tbody>`;
+  for(const g of HAB){h+=`<tr class="grp"><th colspan="8">${esc(g.g)}</th></tr>`;
+    for(const [k,l] of g.items){const rowLabel=k==="mid"?"Ẓuhr / Jumuʿah":l.replace("Sunnah of ","");
+      h+=`<tr><th scope="row">${esc(rowLabel)}</th>${days.map(x=>{const key=keyFor(k,x),on=isOn(x,k);const [L]=labelFor(k,l,"",x);return `<td><button class="cell ${on?"on":""}" data-act="tick" data-date="${dayKey(x)}" data-k="${key}" aria-pressed="${on}" aria-label="${esc(L)}, ${esc(x.toDateString())}"></button></td>`}).join("")}</tr>`}}
+  $("#weekGrid").innerHTML=h+"</tbody>";
+  // streaks
+  const allFard=x=>fard.every(([k])=>isOn(x,k));
+  const rawatib=x=>["s_fajr","s_dhuhr","s_maghrib","s_isha"].every(k=>isOn(x,k));
+  let lastFri=new Date(d);while(!isFriD(lastFri))lastFri=addMin(lastFri,-1440);
+  const S1=[["All five on time",streak(allFard,d),"days"],["Fajr on time",streak(x=>isOn(x,"fajr"),d),"days"],["All 12 rakʿahs of Sunnah",streak(rawatib,d),"days"],["Witr",streak(x=>isOn(x,"witr"),d),"days"],["Qiyām al-layl",streak(x=>isOn(x,"qiyam"),d),"nights"],["Jumuʿah",streak(x=>isOn(x,"mid"),lastFri,7),"Fridays in a row"]];
+  $("#streaks").innerHTML=S1.map(([t,n,u])=>`<div class="card streak"><span class="eyebrow">${esc(t)}</span><b>${n}</b><p>${esc(u)}</p></div>`).join("");
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;
+  if(b.dataset.act==="tick")toggleTick(b.dataset.date,b.dataset.k);
+  if(b.dataset.act==="gotrk"){show("prayers");try{history.replaceState(null,"","#prayers")}catch(_){}}});
+
+/* ---------- muhasabah ---------- */
+let checks={}, chkSel=null; const chkChains={};
+const DOORS=[
+ ["glance","The glance","Did I lower my gaze, and not follow one look with a second?","p. 341","Look away now. \"The first look is for you, the second is not\" (Abū Dāwūd 2149)."],
+ ["thought","The passing thought","Did my thoughts stay within the four: a benefit or protection in my dunyā or ākhirah? Did I let whispers and daydreams pass by?","p. 346","Don't call it back: a passing thought does no harm, entertaining it does (p. 349). Turn your mind to one of the four."],
+ ["word","The word","Before I spoke, did I ask: is there benefit in it? Is there something better to say?","p. 353","If the word wronged someone, put it right with them. Next time, the two questions first."],
+ ["step","The step","Did my feet only take me where there is reward, or to something allowed that I did for Allah?","p. 361","Make the next step one with reward: the masjid, visiting someone, helping with a need."]];
+function slotsFor(d){const T=calcDay(d,S.lat,S.lng,S.method,Number(S.asr)||1);
+  const sl=PRAYERS.map(([k,n])=>({k,name:(k==="dhuhr"&&isFriD(d))?"Jumuʿah":n,t:(k==="dhuhr"&&isFriD(d))?jumStart(T):T[k]}));
+  sl.push({k:"sleep",name:"Before sleep",t:T.isha,sleep:true});return sl}
+// "Before sleep" opens after ʿIshāʾ, and becomes the current one once the ʿIshāʾ check-in is done (or 90 min after ʿIshāʾ)
+function curSlot(now,sl,dk){let c=sl[0];for(const x of sl){if(x.sleep)continue;if(now>=x.t)c=x}
+  const sp=sl.find(x=>x.sleep);if(sp&&now>=sp.t&&(slotDone(dk,"isha")||now>=addMin(sp.t,90)))c=sp;return c}
+function slotAns(dk,k){return((checks[dk]||{})[k])||{}}
+function slotDone(dk,k){const a=slotAns(dk,k);return DOORS.every(([id])=>a[id])}
+function persistChk(dk){
+  const slots=JSON.parse(JSON.stringify(checks[dk]||{}));
+  if(mode==="db"&&colRef){const id="chk-"+dk;
+    chkChains[id]=(chkChains[id]||Promise.resolve()).then(()=>colRef.doc(id).set({kind:"check",date:dk,slots})).catch(()=>{const e=$("#chkSave");if(e)e.textContent="Couldn't save. Check your connection and tap again."});}
+  else ls.set("dt-checks",checks);
+}
+function setChk(dk,slot,field,val){
+  const c=JSON.parse(JSON.stringify(checks[dk]||{}));c[slot]=c[slot]||{};
+  if(field==="note"){if(val)c[slot].note=val;else delete c[slot].note}
+  else{if(c[slot][field]===val)delete c[slot][field];else c[slot][field]=val}
+  checks[dk]=c;if(field!=="note")renderChk();persistChk(dk)}
+function renderChk(){
+  if(!cur)return;
+  const now=new Date(),d=trkDate(now),dk=dayKey(d),sl=slotsFor(d),c=curSlot(now,sl,dk);
+  const sel=sl.find(x=>x.k===chkSel)||c, idx=sl.indexOf(sel), future=sel.t>now;
+  const since=idx===0?"you went to sleep":sl[idx-1].name;
+  $("#chkSlots").innerHTML=sl.map(x=>{const done=slotDone(dk,x.k),fut=x.t>now;
+    return `<button class="slot ${done?"done":""} ${fut?"future":""}" data-act="chksel" data-k="${x.k}" aria-current="${x===sel}"><b>${esc(x.name)}</b><small>${done?"done ✓":fut?(x.sleep?"after ʿIshāʾ":fmt(x.t)):(x===c?"now":"open")}</small></button>`}).join("");
+  const a=slotAns(dk,sel.k), answered=DOORS.filter(([id])=>a[id]).length;
+  let h=`<div class="chk"><div><div class="eyebrow">${sel.sleep?"After your last 4 rakʿahs":fmt(sel.t)} · looking back since ${esc(since)}</div><h3 style="font-size:1.35rem">${sel.sleep?"Before sleep":"After "+esc(sel.name)}</h3>${future?`<p class="src" style="margin:4px 0 0">This check-in opens after ${sel.sleep?"ʿIshāʾ":esc(sel.name)+" at "+fmt(sel.t)}.</p>`:""}</div>`;
+  h+=DOORS.map(([id,t,q,pg,fix])=>`<div class="door"><div class="door-top"><b>${esc(t)}</b><span class="src">${pg}</span></div><p>${esc(q)}</p><div class="seg"><button data-act="ans" data-door="${id}" data-val="g" aria-pressed="${a[id]==="g"}" ${future?"disabled":""}>I guarded it</button><button data-act="ans" data-door="${id}" data-val="s" aria-pressed="${a[id]==="s"}" ${future?"disabled":""}>I opened it</button></div>${a[id]==="s"?`<div class="fix">${esc(fix)} Say astaghfirullāh and follow it with a good deed: "Follow a bad deed with a good one and it will wipe it out" (Tirmidhī 1987).</div>`:""}</div>`).join("");
+  h+=`<div class="field"><label for="chk-note">One thing to do better until the next prayer (optional)</label><textarea id="chk-note" data-k="${sel.k}" ${future?"disabled":""} placeholder="e.g. say salām first, then stay quiet in the group chat">${esc(a.note||"")}</textarea></div>`;
+  h+=`<div class="status" id="chkSave">${answered===4?(DOORS.every(([id])=>a[id]==="g")?"I guarded all four doors. Alḥamdulillāh.":"Check-in done. You owned your choice. Now put it right and guard it until the next prayer."):answered+" of 4 answered"}</div></div>`;
+  const keepFocus=document.activeElement&&document.activeElement.id==="chk-note";
+  if(!keepFocus)$("#chkCard").innerHTML=h;
+  const nudge=$("#chkNudge");
+  if(!slotDone(dk,c.k)&&now>=c.t){nudge.hidden=false;nudge.innerHTML=`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span><b>Muḥāsabah ${c.sleep?"before sleep":"after "+esc(c.name)}.</b> Four doors, one minute.</span><button class="btn primary" data-act="gochk">Check in</button></div>`}
+  else nudge.hidden=true;
+  let done=0,tot=0;const slips={glance:0,thought:0,word:0,step:0};
+  for(let i=0;i<7;i++){const x=addMin(d,-1440*i),xk=dayKey(x),xs=slotsFor(x);
+    for(const y of xs){if(y.t>now)continue;tot++;if(slotDone(xk,y.k))done++;const an=slotAns(xk,y.k);DOORS.forEach(([id])=>{if(an[id]==="s")slips[id]++})}}
+  $("#chkWeek").innerHTML=`<div class="card streak"><span class="eyebrow">Check-ins</span><b>${done}</b><p>of ${tot} prayers</p></div>`+DOORS.map(([id,t])=>`<div class="card streak"><span class="eyebrow">${esc(t.replace("The ",""))}</span><b>${slips[id]}</b><p>times I opened it</p></div>`).join("");
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const act=b.dataset.act;
+  if(act==="chksel"){chkSel=b.dataset.k;renderChk()}
+  if(act==="ans"){const now=new Date(),d=trkDate(now),sl=slotsFor(d),sel=sl.find(x=>x.k===chkSel)||curSlot(now,sl,dayKey(d));setChk(dayKey(d),sel.k,b.dataset.door,b.dataset.val)}
+  if(act==="gochk"){chkSel=null;show("check");renderChk();try{history.replaceState(null,"","#check")}catch(_){}}});
+document.addEventListener("change",e=>{if(e.target.id!=="chk-note")return;const d=trkDate(new Date());setChk(dayKey(d),e.target.dataset.k,"note",e.target.value.trim())});
+
+/* ---------- tabs ---------- */
+const VIEWS=["today","prayers","check","mine","adab","setup"];
+function show(v){if(!VIEWS.includes(v))v="today";VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)))}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{show(t.dataset.view);try{history.replaceState(null,"","#"+t.dataset.view)}catch(e){location.hash=t.dataset.view}}));
+window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
+
+/* ---------- loop ---------- */
+let lastDay="";
+function recompute(){const now=new Date();cur=windows(now);lastDay=dayKey(now);renderHeader(now);renderDial(now);renderTimes();renderSpecial();renderNow();renderTrk();renderChk()}
+function tick(){const now=new Date();if(dayKey(now)!==lastDay){recompute();renderMine();return}
+  if(cur&&cur.W.some(w=>w.id==="night"&&now>=w.end&&w.end.getDate()===now.getDate())){/* last third ended: switch to tonight */recompute();return}
+  $("#clock").textContent=fmt(now);renderDial(now);renderTimes();renderNow();renderTrk();renderChk()}
+renderSettings();renderAdab();renderAnytime();recompute();renderMine();show(location.hash.slice(1));
+setInterval(tick,30000);
+initStore();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body></html>
