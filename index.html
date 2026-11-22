@@ -174,8 +174,30 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 .sess[aria-pressed="true"] .st{color:var(--muted)}
 .sess .st{font-weight:600}
 .sess small{display:block;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
-.sess.next{background:var(--gold-soft)}
 .chipx{display:inline-block;margin-top:4px;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold)}
+.sessrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-top:1px solid var(--line)}
+.sessrow:first-child{border-top:0}
+.sessrow .sess{border-top:0}
+.sessrow.next{background:var(--gold-soft)}
+.readbtn{margin-right:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-weight:600;font-size:.8rem}
+.readblk{display:grid;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.pdflabel{justify-self:start;cursor:pointer}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;font:inherit;font-size:inherit}
+.reader{position:fixed;inset:0;z-index:50;background:#2a2d33;display:grid;grid-template-rows:auto 1fr auto}
+.rd-bar{display:flex;align-items:center;gap:8px;padding:8px max(10px,env(safe-area-inset-right,0px)) 8px max(10px,env(safe-area-inset-left,0px));background:var(--night);color:var(--band-ink)}
+.rd-top{padding-top:calc(8px + env(safe-area-inset-top,0px))}
+.rd-bottom{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:8px}
+.rd-bottom #rdPrev,.rd-bottom #rdNext{font-size:1.3rem;padding:6px 0}
+.rd-extra{grid-column:1/-1;display:flex;gap:8px;justify-content:center}
+.rd-extra button{flex:1;max-width:220px}
+.rd-bar button,.rd-bar select,.rd-bar input{background:rgba(255,255,255,.08);color:var(--band-ink);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:7px 10px;font:inherit;font-size:.88rem}
+.rd-bar select option{color:#111}
+.rd-bar input{width:64px;text-align:center}
+.rd-title{flex:1;min-width:0;font-family:var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-wrap{overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:8px 4px;-webkit-overflow-scrolling:touch}
+.rd-wrap canvas{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.rd-msg{color:#ddd;text-align:center;padding:40px 20px}
+#rdDone[aria-pressed="true"]{background:var(--now);border-color:var(--now);color:#fff}
 .book-foot{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--line)}
 .book-foot a{color:var(--ink);text-decoration:none}
 .slots{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
@@ -428,6 +450,12 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 </section>
 
 </div></main>
+<div class="reader" id="reader" hidden>
+  <div class="rd-bar rd-top"><button id="rdClose" aria-label="Close the book">✕</button><span class="rd-title" id="rdTitle"></span><input id="rdPage" type="number" inputmode="numeric" aria-label="Page"><span id="rdOf" style="font-size:.8rem;color:var(--band-muted)"></span></div>
+  <div class="rd-wrap" id="rdWrap"><div class="rd-msg" id="rdMsg"></div><canvas id="rdCanvas"></canvas></div>
+  <div class="rd-bar rd-bottom"><button id="rdPrev" aria-label="Previous page">‹</button><select id="rdSess" aria-label="Jump to session"></select><button id="rdNext" aria-label="Next page">›</button><div class="rd-extra"><button id="rdZoom">Zoom</button><button id="rdDone" hidden></button></div></div>
+</div>
+
 
 <script>
 (function(){
@@ -917,13 +945,19 @@ document.addEventListener("change",e=>{if(e.target.id!=="chk-note")return;const 
 /* ---------- library ---------- */
 let books={}, booksFresh=false; const bookChains={};
 const BOOKS=[{id:"disease-cure",title:"The Disease and the Cure",ar:"الدَّاءُ وَالدَّوَاءُ",author:"Ibn Qayyim al-Jawziyyah (d. 751 AH)",edition:"Hikmah Publications, 2020 · 527 pages",teacher:"Lecture series: Abdulrahman Hassan",
-  notes:"https://claude.ai/artifact/EYEtARMKXvipPvaNg9CAd1",seedDone:12,pages:527,
+  notes:"https://claude.ai/artifact/EYEtARMKXvipPvaNg9CAd1",seedDone:12,pages:527,offset:23,
   sessions:[[1,48,"Part 1: the cure and du'a","today"],[49,84,"Good opinion of Allah vs delusion"],[85,108,"Deceived by the dunyā; hope and fear"],[109,138,"Punishments of past nations; first harms of sins"],[139,170,"Harms of sins, continued"],[171,210,"Harms of sins, continued"],[211,240,"The devils and the eye, ear, tongue; forgetting yourself"],[241,264,"Worldly and hereafter punishments"],[265,298,"Sound heart; categories of sins; shirk"],[299,340,"Reality of shirk; innovation; oppression; murder"],[341,370,"The four doors: glance, thought, word, step","check"],[371,394,"Bad endings; people of Lūṭ; the cure for infatuation"],[395,424,"Levels and types of love"],[425,456,"Lā ilāha illa Allāh; love as the root of all action"],[457,486,"Forbidden images; harms and stages of infatuation"],[487,510,"The highest happiness; seeing Allah"],[511,527,"Love of His speech; love of women; Zaynab; the final hadith"],[0,0,"Review your notes and write one page: \"What this book changed for me\""]]}];
 const APPLINK={today:["Du'a times","today"],check:["Muḥāsabah","check"]};
 function persistBook(id){
   const done=Object.assign({},books[id]||{});
   if(mode==="db"&&colRef){const k="book-"+id;bookChains[k]=(bookChains[k]||Promise.resolve()).then(()=>colRef.doc(k).set({kind:"book",book:id,done})).catch(()=>{})}
   else ls.set("dt-books",books);
+}
+function readBlock(b,nextIdx){
+  const msg=pdfMsg[b.id]?`<div class="status">${esc(pdfMsg[b.id])}</div>`:"";
+  if(pdfHave[b.id]){const last=Number(ls.get("cth-lastpage-"+b.id,0)),pr=last?last-b.offset:0;const nx=nextIdx>=0&&b.sessions[nextIdx][1]?b.sessions[nextIdx]:null;
+    return `<div class="readblk"><div class="dua-actions"><button class="btn primary" data-act="read" data-book="${b.id}">${pr>0?"Continue reading · p. "+pr:"Open the book"}</button>${nx?`<button class="btn" data-act="read" data-book="${b.id}" data-p="${nx[0]}">Session ${nextIdx+1} · p. ${nx[0]}</button>`:""}</div><div class="src">The PDF is stored only on this device. <button class="linkbtn" data-act="pdfdel" data-book="${b.id}">Remove</button></div>${msg}</div>`}
+  return `<div class="readblk"><b>Read the book here</b><div class="src">Choose the PDF from your phone once. It stays only on this device: it is not uploaded anywhere. After that it opens offline, at any session.</div><label class="btn primary pdflabel">Choose PDF<input type="file" accept="application/pdf,.pdf" class="pdfpick" data-book="${b.id}" hidden></label>${msg}</div>`;
 }
 function renderLibrary(){
   const box=$("#libBooks");if(!box)return;
@@ -935,17 +969,93 @@ function renderLibrary(){
     const pct=Math.round(dn/n*100);
     return `<article class="book"><div class="book-head"><div class="spine"><span>${esc(b.ar)}</span></div><div style="display:grid;gap:4px;align-content:start"><h3>${esc(b.title)}</h3><div class="ar">${esc(b.ar)}</div><div class="meta">${esc(b.author)}<br>${esc(b.edition)}<br>${esc(b.teacher)}</div></div></div>
     <div class="prog"><div class="prog-top"><span class="eyebrow">${dn===n?"Finished, alḥamdulillāh":nextIdx>=0?"Next: session "+(nextIdx+1):""}</span><b>${dn}<small style="font-family:var(--f-body);font-size:.8rem;color:var(--muted)"> / ${n} sessions</small></b></div><div class="bar"><i style="width:${pct}%"></i></div><div class="src">${pagesRead} of ${b.pages} pages · ${pct}%</div></div>
+    ${readBlock(b,nextIdx)}
     <div>${b.sessions.map(([a,z,t,app],i)=>{const k=i+1,on=!!done[k],when=on&&/^\d{4}-/.test(done[k])?" · done "+done[k].slice(8,10)+"."+done[k].slice(5,7)+".":"";
-      return `<button class="sess ${i===nextIdx?"next":""}" data-act="sess" data-book="${b.id}" data-k="${k}" aria-pressed="${on}"><span class="box">✓</span><span><span class="st">Session ${k}${z?": pp. "+a+"–"+z:""}</span><small>${esc(t)}${when}</small>${app?`<span class="chipx">In the app: ${esc(APPLINK[app][0])}</span>`:""}</span></button>`}).join("")}</div>
+      return `<div class="sessrow ${i===nextIdx?"next":""}"><button class="sess" data-act="sess" data-book="${b.id}" data-k="${k}" aria-pressed="${on}"><span class="box">✓</span><span><span class="st">Session ${k}${z?": pp. "+a+"–"+z:""}</span><small>${esc(t)}${when}</small>${app?`<span class="chipx">In the app: ${esc(APPLINK[app][0])}</span>`:""}</span></button>${pdfHave[b.id]&&z?`<button class="readbtn" data-act="read" data-book="${b.id}" data-p="${a}" aria-label="Read session ${k}">Read</button>`:""}</div>`}).join("")}</div>
     <div class="book-foot"><a class="btn" href="${b.notes}" target="_blank" rel="noopener">Open study notes</a></div></article>`}).join("");
 }
 document.addEventListener("click",e=>{const b=e.target.closest('[data-act="sess"]');if(!b)return;
   const id=b.dataset.book,k=b.dataset.k,d=Object.assign({},books[id]||{});
   if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;renderLibrary();persistBook(id)});
 
+/* ---------- book reader (PDF stays on this device, IndexedDB) ---------- */
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+const IDB={
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open("cth-books",1);r.onupgradeneeded=()=>r.result.createObjectStore("files");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  async run(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction("files",mode);const rq=fn(tx.objectStore("files"));tx.oncomplete=()=>res(rq&&rq.result);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)})},
+  get(k){return this.run("readonly",s=>s.get(k))},set(k,v){return this.run("readwrite",s=>s.put(v,k))},del(k){return this.run("readwrite",s=>s.delete(k))}};
+let pdfHave={}, pdfMsg={};
+async function checkPdfs(){for(const b of BOOKS){try{pdfHave[b.id]=!!(await IDB.get(b.id))}catch(e){pdfHave[b.id]=false}}renderLibrary()}
+async function savePdf(id,file){
+  if(!file)return;if(file.type&&file.type!=="application/pdf"&&!/\.pdf$/i.test(file.name)){pdfMsg[id]="That file is not a PDF.";renderLibrary();return}
+  pdfMsg[id]="Saving the book on this phone…";renderLibrary();
+  try{await IDB.set(id,file);try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(_){}
+    pdfHave[id]=true;pdfMsg[id]="Saved on this device ("+Math.round(file.size/1048576)+" MB).";R.doc=null}
+  catch(e){pdfMsg[id]="Couldn't save it here ("+(e&&e.name||"error")+"). Free some space on the phone and try again."}
+  renderLibrary();
+}
+let pdfjsP=null;
+function loadPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+  if(!pdfjsP)pdfjsP=new Promise((res,rej)=>{const s=document.createElement("script");s.src=PDFJS+"pdf.min.js";s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.js";res(window.pdfjsLib)};s.onerror=()=>{pdfjsP=null;rej(new Error("load"))};document.head.appendChild(s)});
+  return pdfjsP}
+const R={doc:null,book:null,page:1,busy:false,pending:null,zoom:1};
+const rd=id=>document.getElementById(id);
+function bookOf(id){return BOOKS.find(b=>b.id===id)}
+function sessionAt(b,printed){return b.sessions.findIndex(([a,z])=>z&&printed>=a&&printed<=z)}
+async function openReader(id,printed){
+  const b=bookOf(id);rd("reader").hidden=false;document.body.style.overflow="hidden";rd("rdTitle").textContent=b.title;rd("rdMsg").textContent="Opening the book…";rd("rdMsg").hidden=false;
+  if(location.hash!=="#read"){try{history.pushState(null,"","#read")}catch(_){}}
+  rd("rdSess").innerHTML=b.sessions.map(([a,z,t],i)=>z?`<option value="${a}">Session ${i+1}: p. ${a}</option>`:"").join("");
+  try{
+    if(!R.doc||R.book!==id){const blob=await IDB.get(id);if(!blob)throw new Error("nofile");const lib=await loadPdfJs();R.doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise;R.book=id}
+    const last=Number(ls.get("cth-lastpage-"+id,0));
+    rd("rdMsg").hidden=true;
+    await renderPage(printed?printed+b.offset:(last||b.offset+1));
+  }catch(e){rd("rdMsg").textContent=e.message==="nofile"?"The book isn't on this device yet. Choose the PDF in the Library first.":"The reader couldn't load. Check your connection once, then it works offline."}
+}
+function closeReader(fromHistory){rd("reader").hidden=true;document.body.style.overflow="";if(!fromHistory&&location.hash==="#read"){try{history.back()}catch(_){}}renderLibrary()}
+async function renderPage(n){
+  if(!R.doc)return;n=Math.max(1,Math.min(R.doc.numPages,n));R.page=n;
+  if(R.busy){R.pending=n;return}R.busy=true;
+  try{const page=await R.doc.getPage(n);const wrap=rd("rdWrap");const w=Math.max(200,wrap.clientWidth-8);
+    const base=page.getViewport({scale:1});const dpr=Math.min(window.devicePixelRatio||1,2.5);const scale=w/base.width*R.zoom;
+    const vp=page.getViewport({scale:scale*dpr});const cv=rd("rdCanvas");cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);cv.style.width=Math.floor(vp.width/dpr)+"px";cv.style.height=Math.floor(vp.height/dpr)+"px";
+    await page.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;
+  }catch(e){}
+  R.busy=false;updateReaderBar();
+  if(R.pending!==null){const p=R.pending;R.pending=null;if(p!==R.page||true)renderPage(p)}
+}
+function updateReaderBar(){
+  const b=bookOf(R.book),pr=R.page-b.offset;ls.set("cth-lastpage-"+b.id,R.page);
+  rd("rdPage").value=pr>0&&pr<=b.pages?pr:"";rd("rdPage").placeholder=pr>0?"":"intro";
+  rd("rdOf").textContent=pr>0&&pr<=b.pages?"of "+b.pages:"PDF page "+R.page;
+  const si=pr>0?sessionAt(b,pr):-1;
+  if(si>=0){rd("rdSess").value=String(b.sessions[si][0]);const done=!!((books[b.id]||{})[si+1]);rd("rdDone").hidden=false;rd("rdDone").textContent=done?"Session "+(si+1)+" done ✓":"Mark session "+(si+1)+" done";rd("rdDone").setAttribute("aria-pressed",String(done));rd("rdDone").dataset.k=si+1}
+  else rd("rdDone").hidden=true;
+}
+function readerSetup(){
+  rd("rdClose").addEventListener("click",()=>closeReader(false));
+  rd("rdPrev").addEventListener("click",()=>renderPage(R.page-1));
+  rd("rdNext").addEventListener("click",()=>renderPage(R.page+1));
+  rd("rdPage").addEventListener("change",e=>{const v=parseInt(e.target.value,10);if(v>0)renderPage(v+bookOf(R.book).offset)});
+  rd("rdSess").addEventListener("change",e=>renderPage(parseInt(e.target.value,10)+bookOf(R.book).offset));
+  rd("rdZoom").addEventListener("click",()=>{R.zoom=R.zoom>=2?1:R.zoom+0.5;rd("rdZoom").textContent=R.zoom===1?"Zoom":"×"+R.zoom;renderPage(R.page)});
+  rd("rdDone").addEventListener("click",e=>{const id=R.book,k=e.currentTarget.dataset.k,d=Object.assign({},books[id]||{});if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;persistBook(id);updateReaderBar()});
+  let sx=null,sy=null;const wrap=rd("rdWrap");
+  wrap.addEventListener("touchstart",e=>{if(e.touches.length!==1){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+  wrap.addEventListener("touchend",e=>{if(sx===null||R.zoom!==1)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)renderPage(R.page+(dx<0?1:-1));sx=null},{passive:true});
+  document.addEventListener("keydown",e=>{if(rd("reader").hidden)return;if(e.key==="ArrowRight")renderPage(R.page+1);if(e.key==="ArrowLeft")renderPage(R.page-1);if(e.key==="Escape")closeReader(false)});
+  window.addEventListener("resize",()=>{if(!rd("reader").hidden)renderPage(R.page)});
+  window.addEventListener("hashchange",()=>{if(location.hash!=="#read"&&!rd("reader").hidden)closeReader(true)});
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="read")openReader(b.dataset.book,b.dataset.p?parseInt(b.dataset.p,10):0);
+  if(a==="pdfdel"){if(b.dataset.sure){IDB.del(b.dataset.book).then(()=>{pdfHave[b.dataset.book]=false;R.doc=null;pdfMsg[b.dataset.book]="Removed from this device.";renderLibrary()})}else{b.dataset.sure="1";b.textContent="Tap again to remove"}}});
+document.addEventListener("change",e=>{if(e.target.matches&&e.target.matches(".pdfpick"))savePdf(e.target.dataset.book,e.target.files[0])});
+
 /* ---------- tabs ---------- */
 const VIEWS=["today","prayers","check","library","mine","adab","setup"];
-function show(v){if(!VIEWS.includes(v))v="today";VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)))}
+function show(v){if(v==="read")return;if(!VIEWS.includes(v))v="today";VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)))}
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{show(t.dataset.view);try{history.replaceState(null,"","#"+t.dataset.view)}catch(e){location.hash=t.dataset.view}}));
 window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
 
@@ -958,6 +1068,7 @@ function tick(){const now=new Date();if(dayKey(now)!==lastDay){recompute();rende
 renderSettings();renderAdab();renderAnytime();recompute();renderMine();show(location.hash.slice(1));
 setInterval(tick,30000);
 initStore();
+readerSetup();checkPdfs();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 /* theme */
 function curTheme(){let t="";try{t=localStorage.getItem("cth-theme")||""}catch(e){}return t||(matchMedia("(pointer:coarse)").matches?"dark":"auto")}

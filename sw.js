@@ -1,5 +1,5 @@
 /* Curing the Heart service worker: offline app shell */
-const CACHE = 'cth-v5';
+const CACHE = 'cth-v6';
 const SHELL = ['./', './index.html', './firebase-config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-48.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -11,7 +11,13 @@ self.addEventListener('activate', e => {
 // Same-origin only: network first (so updates arrive), cache as offline fallback.
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET') return;
+  // the PDF reader library: cache-first so the book opens offline
+  if (req.url.startsWith('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/')) {
+    e.respondWith(caches.match(req).then(r => r || fetch(req).then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; })));
+    return;
+  }
+  if (new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(fetch(req).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
