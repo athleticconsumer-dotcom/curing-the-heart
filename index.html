@@ -631,7 +631,10 @@ async function initStore(){
     btn.onclick=async()=>{
       if(uid){await auth.signOut(au);return}
       const prov=new auth.GoogleAuthProvider();
-      try{await auth.signInWithPopup(au,prov)}catch(e){if(e&&e.code==="auth/popup-blocked")auth.signInWithRedirect(au,prov);else setSync("Sign-in failed, try again")}
+      try{await auth.signInWithPopup(au,prov)}catch(e){const c=(e&&e.code)||"unknown";
+        if(c==="auth/popup-blocked")auth.signInWithRedirect(au,prov);
+        else{const hint={"auth/unauthorized-domain":"Add athleticconsumer-dotcom.github.io under Firebase → Authentication → Settings → Authorized domains.","auth/operation-not-allowed":"Turn on Google under Firebase → Authentication → Sign-in method.","auth/configuration-not-found":"Open Firebase → Authentication and click Get started, then turn on Google.","auth/popup-closed-by-user":"The window was closed before sign-in finished. Try again.","auth/cancelled-popup-request":"Try again.","auth/network-request-failed":"No connection. Try again online."}[c]||"";
+          setSync("Sign-in failed: "+c);if(hint)statusEl().textContent=hint;try{console.warn(e)}catch(_){}}}
     };
     auth.getRedirectResult(au).catch(()=>{});
     auth.onAuthStateChanged(au,user=>{
@@ -961,7 +964,7 @@ function readBlock(b,nextIdx){
 }
 function renderLibrary(){
   const box=$("#libBooks");if(!box)return;
-  if(booksFresh)BOOKS.forEach(b=>{if(!books[b.id]&&b.seedDone){const d={};for(let i=1;i<=b.seedDone;i++)d[i]="from study notes";books[b.id]=d;persistBook(b.id)}});
+  if(booksFresh)BOOKS.forEach(b=>{if((!books[b.id]||!Object.keys(books[b.id]).length)&&b.seedDone){const d={};for(let i=1;i<=b.seedDone;i++)d[i]="from study notes";books[b.id]=d;persistBook(b.id)}});
   box.innerHTML=BOOKS.map(b=>{
     const done=books[b.id]||{}, n=b.sessions.length, dn=b.sessions.filter((_,i)=>done[i+1]).length;
     const nextIdx=b.sessions.findIndex((_,i)=>!done[i+1]);
