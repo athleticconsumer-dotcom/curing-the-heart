@@ -944,6 +944,9 @@ function renderChk(){
   const a=slotAns(dk,sel.k), answered=DOORS.filter(([id])=>a[id]).length;
   let h=`<div class="chk"><div><div class="eyebrow">${sel.sleep?"After your last 4 rakʿahs":fmt(sel.t)} · looking back since ${esc(since)}</div><h3 style="font-size:1.35rem">${sel.sleep?"Before sleep":"After "+esc(sel.name)}</h3>${future?`<p class="src" style="margin:4px 0 0">This check-in opens after ${sel.sleep?"ʿIshāʾ":esc(sel.name)+" at "+fmt(sel.t)}.</p>`:""}</div>`;
   h+=DOORS.map(([id,t,q,pg,fix])=>`<div class="door"><div class="door-top"><b>${esc(t)}</b><span class="src">${pg}</span></div><p>${esc(q)}</p><div class="seg"><button data-act="ans" data-door="${id}" data-val="g" aria-pressed="${a[id]==="g"}" ${future?"disabled":""}>I guarded it</button><button data-act="ans" data-door="${id}" data-val="s" aria-pressed="${a[id]==="s"}" ${future?"disabled":""}>I opened it</button></div>${a[id]==="s"?`<div class="fix">${esc(fix)} Say astaghfirullāh and follow it with a good deed: "Follow a bad deed with a good one and it will wipe it out" (Tirmidhī 1987).</div>`:""}</div>`).join("");
+  if(typeof qState==="function"){const q=qState(),ni=JUZ.findIndex((_,i)=>!q.juz[String(i+1)]),qk=sel.sleep?null:sel.k;
+    if(ni>=0&&qk){const pi=QPARTS.findIndex(([x])=>x===qk),[pa,pz]=partPages(ni,pi),on=!!((q.prog[String(ni+1)]||{})[qk]);
+      h+=`<div class="door"><div class="door-top"><b>Qur'an after ${esc(sel.name)}</b><span class="src">Juz ${ni+1}</span></div><p>Your portion: pages ${pa}–${pz}.</p><div class="seg"><button data-act="qpart" data-i="${ni}" data-k="${qk}" aria-pressed="${on}" data-val="g" ${future?"disabled":""}>${on?"Read ✓":"I read it"}</button></div></div>`}}
   h+=`<div class="field"><label for="chk-note">One thing to do better until the next prayer (optional)</label><textarea id="chk-note" data-k="${sel.k}" ${future?"disabled":""} placeholder="e.g. say salām first, then stay quiet in the group chat">${esc(a.note||"")}</textarea></div>`;
   h+=`<div class="status" id="chkSave">${answered===4?(DOORS.every(([id])=>a[id]==="g")?"I guarded all four doors. Alḥamdulillāh.":"Check-in done. You owned your choice. Now put it right and guard it until the next prayer."):answered+" of 4 answered"}</div></div>`;
   const keepFocus=document.activeElement&&document.activeElement.id==="chk-note";
@@ -1089,21 +1092,34 @@ const QDUA=[["d1","Wuḍūʾ","Come to the words of Allah in purity"],
  ["d4","Ask at an āyah of mercy, seek refuge at an āyah of punishment","The Prophet ﷺ did this in his night prayer (Muslim 772)"],
  ["d5","Du'a in the sajdah of recitation","سَجَدَ وَجْهِيَ لِلَّذِي خَلَقَهُ وَشَقَّ سَمْعَهُ وَبَصَرَهُ بِحَوْلِهِ وَقُوَّتِهِ (Abū Dāwūd 1414, Tirmidhī 580)"],
  ["d6","After reading: ask for knowledge and a living heart","رَبِّ زِدْنِي عِلْمًا (Ṭāhā 20:114) · \"make the Qur'an the spring of my heart\" (Aḥmad 3712)"]];
-function qState(){if(!quran)quran={start:null,juz:{},days:{},checks:{},done:[]};["juz","days","checks"].forEach(k=>{if(!quran[k])quran[k]={}});if(!quran.done)quran.done=[];return quran}
+function qState(){if(!quran)quran={start:null,juz:{},days:{},checks:{},done:[]};["juz","days","checks","prog"].forEach(k=>{if(!quran[k])quran[k]={}});if(!quran.done)quran.done=[];return quran}
 function persistQuran(){const data=JSON.parse(JSON.stringify(qState()));
   if(mode==="db"&&colRef){qChain=qChain.then(()=>colRef.doc("quran").set(Object.assign({kind:"quran"},data))).catch(()=>{const e=$("#qSave");if(e)e.textContent="Couldn't save. Check your connection and tap again."})}
   else ls.set("dt-quran",data)}
 function daysBetween(a,b){return Math.round((startOfDay(b)-startOfDay(a))/864e5)}
 function parseDay(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+const QPARTS=[["fajr","Fajr"],["dhuhr","Ẓuhr"],["asr","ʿAṣr"],["maghrib","Maghrib"],["isha","ʿIshāʾ"]];
+function partPages(i,pi){const [a,z]=juzPages(i),n=z-a+1;const s0=a+Math.round(pi*n/5),s1=a+Math.round((pi+1)*n/5)-1;return[s0,s1]}
+function qPrayerNow(){const now=new Date(),d=trkDate(now),sl=slotsFor(d),c=curSlot(now,sl,dayKey(d));const k=c.sleep?"isha":c.k;return now>=sl[0].t||trkDate(now)<startOfDay(now)?k:"fajr"}
+function qPart(i,key){const q=qState(),k=String(i+1),today=dayKey(new Date());if(!q.start)q.start=today;
+  const p=Object.assign({},q.prog[k]||{});if(p[key])delete p[key];else p[key]=today;q.prog[k]=p;
+  const all=QPARTS.every(([x])=>p[x]);
+  if(all&&!q.juz[k]){q.juz[k]=today;q.days[today]=(q.days[today]||0)+1}
+  if(!all&&q.juz[k]){const was=q.juz[k];delete q.juz[k];if(q.days[was]){q.days[was]--;if(q.days[was]<=0)delete q.days[was]}}
+  renderQuran();renderChk();persistQuran()}
 function qToggle(i){const q=qState(),k=String(i+1),today=dayKey(new Date());
   if(!q.start)q.start=today;
-  if(q.juz[k]){const was=q.juz[k];delete q.juz[k];if(q.days[was]){q.days[was]--;if(q.days[was]<=0)delete q.days[was]}}
+  if(q.juz[k]){const was=q.juz[k];delete q.juz[k];delete q.prog[k];if(q.days[was]){q.days[was]--;if(q.days[was]<=0)delete q.days[was]}}
   else{q.juz[k]=today;q.days[today]=(q.days[today]||0)+1}
-  renderQuran();persistQuran()}
+  renderQuran();renderChk();persistQuran()}
 function qCheck(id){const q=qState(),dk=dayKey(new Date()),c=Object.assign({},q.checks[dk]||{});if(c[id])delete c[id];else c[id]=1;
   q.checks={};q.checks[dk]=c;renderQuran();persistQuran()}
-function qStreak(){const q=qState();let d=startOfDay(new Date()),n=0;if(!q.days[dayKey(d)])d=addMin(d,-1440);
-  for(let i=0;i<400&&q.days[dayKey(d)];i++){n++;d=addMin(d,-1440)}return n}
+function qReadDays(){const q=qState(),set=new Set(Object.keys(q.days));Object.values(q.prog).forEach(p=>Object.values(p).forEach(v=>set.add(v)));return set}
+function qStreak(){const set=qReadDays();let d=startOfDay(new Date()),n=0;if(!set.has(dayKey(d)))d=addMin(d,-1440);
+  for(let i=0;i<400&&set.has(dayKey(d));i++){n++;d=addMin(d,-1440)}return n}
+function qPartsHtml(i){const q=qState(),p=q.prog[String(i+1)]||{},cur=qPrayerNow();
+  return `<div class="tgrid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${QPARTS.map(([k,n],pi)=>{const [a,z]=partPages(i,pi),on=!!p[k];
+    return `<button class="tick" data-act="qpart" data-i="${i}" data-k="${k}" aria-pressed="${on}" ${k===cur&&!on?'style="outline:2px solid var(--gold);outline-offset:1px"':""}><span class="box">✓</span><span><b>After ${n}</b><small>pages ${a}–${z}</small></span></button>`}).join("")}</div>`}
 function renderQuran(){
   const box=$("#qBox");if(!box)return;const q=qState(),now=new Date(),today=dayKey(now);
   const doneN=Object.keys(q.juz).length, nextI=JUZ.findIndex((_,i)=>!q.juz[String(i+1)]);
@@ -1118,7 +1134,7 @@ function renderQuran(){
   let h=`<div class="chk"><div class="ph-head"><div><div class="eyebrow">${q.start?"Day "+Math.min(day,99)+" · started "+parseDay(q.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Khatmah · one juz a day"}</div><h3 style="font-size:1.35rem">${doneN===30?"Khatmah complete":(todayN&&diff>=0)?"Today's juz is read ✓":nextI>=0?"Today: Juz "+(nextI+1):""}</h3></div><div class="score">${doneN}<small> / 30</small></div></div>
   <div class="bar"><i style="width:${Math.round(doneN/30*100)}%"></i></div>
   <div class="status" style="color:var(--ink)">${esc(status)}</div>`;
-  if(nextI>=0){const [a,z]=juzPages(nextI);h+=`<div class="card" style="gap:6px"><span class="eyebrow">${(todayN&&diff>=0)?"Next · ":""}Juz ${nextI+1} · ${esc(JUZ[nextI][0])}</span><b>From ${esc(JUZ[nextI][1])} · pages ${a}–${z}</b><p>About ${z-a+1} pages. ${todayN?"You read "+todayN+" juz today.":"Split it over the prayers: about 4 pages after each one."}</p><div class="dua-actions"><button class="btn primary" data-act="qtick" data-i="${nextI}">Juz ${nextI+1} read ✓</button></div></div>`}
+  if(nextI>=0){const [a,z]=juzPages(nextI);h+=`<div class="card" style="gap:6px"><span class="eyebrow">${(todayN&&diff>=0)?"Next · ":""}Juz ${nextI+1} · ${esc(JUZ[nextI][0])}</span><b>From ${esc(JUZ[nextI][1])} · pages ${a}–${z}</b><p>About ${z-a+1} pages: about 4 after each prayer.</p>${qPartsHtml(nextI)}<div class="dua-actions"><button class="btn ghost" data-act="qtick" data-i="${nextI}">Read the whole juz at once ✓</button></div></div>`}
   else h+=`<div class="note"><b>Make du'a at the khatmah.</b> When Anas ibn Mālik finished the Qur'an, he gathered his family and made du'a (ad-Dārimī 3517). Gather yours, then start the next one.<div class="dua-actions" style="margin-top:8px"><button class="btn primary" data-act="qnew">Start the next khatmah</button></div></div>`;
   h+=`<div class="slots" style="flex-wrap:wrap;overflow:visible">`+[["Streak",streak+(streak===1?" day":" days")],["Today",todayN+" juz"],["Khatmahs",String(q.done.length)]].map(([t,v])=>`<div class="slot" style="cursor:default"><small>${t}</small><b>${v}</b></div>`).join("")+`</div>`;
   if(q.start)h+=`<div class="field" style="max-width:220px"><label for="qStart">Started on</label><input type="date" id="qStart" value="${q.start}"></div>`;
@@ -1133,10 +1149,11 @@ function renderQuran(){
   if(q.done.length)h+=`<div class="block"><h3>Finished khatmahs</h3><div class="cards">${q.done.slice().reverse().map((d,i)=>`<div class="card"><b>Khatmah ${q.done.length-i}</b><p>${parseDay(d.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${parseDay(d.end).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${daysBetween(parseDay(d.start),parseDay(d.end))+1} days</p></div>`).join("")}</div></div>`;
   box.innerHTML=h;
   // nudge on Today
-  const qn=$("#qNudge");if(qn){if(nextI>=0){const [a,z]=juzPages(nextI);qn.hidden=false;qn.innerHTML=`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>${(todayN&&diff>=0)?`<b>Qur'an: today's juz is read ✓</b> · next is Juz ${nextI+1}`:`<b>Qur'an today: Juz ${nextI+1}</b> · ${esc(JUZ[nextI][1])}, pages ${a}–${z}`}</span><button class="btn" data-act="goq">Khatmah</button></div>`}else qn.hidden=true}
+  const qn=$("#qNudge");if(qn){if(nextI>=0){const [a,z]=juzPages(nextI);qn.hidden=false;qn.innerHTML=`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>${(todayN&&diff>=0)?`<b>Qur'an: today's juz is read ✓</b> · next is Juz ${nextI+1}`:(()=>{const ck=qPrayerNow(),pi=QPARTS.findIndex(([x])=>x===ck),[pa,pz]=partPages(nextI,pi),pd=Object.keys(q.prog[String(nextI+1)]||{}).length;return `<b>Qur'an after ${QPARTS[pi][1]}: pages ${pa}–${pz}</b> · Juz ${nextI+1}, ${pd} of 5 portions read`})()}</span><button class="btn" data-act="goq">Khatmah</button></div>`}else qn.hidden=true}
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="qtick")qToggle(parseInt(b.dataset.i,10));
+  if(a==="qpart")qPart(parseInt(b.dataset.i,10),b.dataset.k);
   if(a==="qnew"){const q=qState();q.done.push({start:q.start||dayKey(new Date()),end:dayKey(new Date())});q.juz={};q.start=dayKey(new Date());renderQuran();persistQuran()}
   if(a==="goq"){show("quran");try{history.replaceState(null,"","#quran")}catch(_){}}});
 document.addEventListener("change",e=>{const t=e.target;
