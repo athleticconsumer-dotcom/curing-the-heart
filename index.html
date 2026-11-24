@@ -155,6 +155,14 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 .cell{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);background:none;padding:0;vertical-align:middle}
 .cell.on{background:var(--now);border-color:var(--now)}
 .streak b{font-family:var(--f-display);font-size:1.6rem;font-weight:400;font-variant-numeric:tabular-nums}
+.juzgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+@media (max-width:440px){.juzgrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.juz{display:grid;gap:1px;justify-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 2px}
+.juz b{font-family:var(--f-display);font-weight:400;font-size:1.2rem;font-variant-numeric:tabular-nums}
+.juz small{font-size:.66rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.juz.on{background:var(--now-soft);border-color:var(--now)}
+.juz.on small{color:var(--now)}
+.juz.cur{outline:2px solid var(--gold);outline-offset:1px}
 .book{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .book-head{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:16px;background:linear-gradient(180deg,var(--night),var(--night-2));color:var(--band-ink)}
 .spine{width:64px;height:88px;border-radius:4px 8px 8px 4px;background:linear-gradient(90deg,#8a5a1c,#E2AE55 18%,#f0c77a 60%,#E2AE55);display:grid;place-items:center;box-shadow:inset 3px 0 0 rgba(0,0,0,.25)}
@@ -256,6 +264,7 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
     <button class="tab" role="tab" data-view="today" aria-selected="true">Today</button>
     <button class="tab" role="tab" data-view="prayers" aria-selected="false">Prayers</button>
     <button class="tab" role="tab" data-view="check" aria-selected="false">Muḥāsabah</button>
+    <button class="tab" role="tab" data-view="quran" aria-selected="false">Khatmah</button>
     <button class="tab" role="tab" data-view="mine" aria-selected="false">My du'as</button>
     <button class="tab" role="tab" data-view="adab" aria-selected="false">How to ask</button>
     <button class="tab" role="tab" data-view="library" aria-selected="false">Library</button>
@@ -270,6 +279,7 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
   <div class="nowcard" id="nowcard"></div>
   <div class="block" id="chkNudge" hidden></div>
   <div class="block" id="miniTrk"></div>
+  <div class="block" id="qNudge" hidden></div>
   <div class="block" id="specialDay"></div>
   <div class="block">
     <h3>Today's times</h3>
@@ -320,6 +330,11 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
     </div>
   </div>
   <div class="block"><h3>Last 7 days</h3><div class="cards" id="chkWeek" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"></div></div>
+</section>
+
+<!-- KHATMAH -->
+<section class="view" id="v-quran" hidden>
+  <div id="qBox" class="block"></div>
 </section>
 
 <!-- LIBRARY -->
@@ -599,11 +614,12 @@ function applyDocs(docs,fresh){
   const nl={},nc={};docs.forEach(x=>{const v=x.data;if(v.kind==="log"&&v.date)nl[v.date]=Object.assign({},v.ticks||{});if(v.kind==="check"&&v.date)nc[v.date]=JSON.parse(JSON.stringify(v.slots||{}))});
   logs=nl;checks=nc;
   const nb={};docs.forEach(x=>{const v=x.data;if(v.kind==="book"&&v.book)nb[v.book]=Object.assign({},v.done||{})});books=nb;booksFresh=fresh!==false;
+  const qd=docs.find(x=>x.data.kind==="quran");quran=qd?JSON.parse(JSON.stringify(qd.data)):null;
   renderAll();
 }
-function renderAll(){renderMine();renderNow();renderTrk();renderChk();renderLibrary()}
+function renderAll(){renderMine();renderNow();renderTrk();renderChk();renderLibrary();renderQuran()}
 function loadLocal(){
-  mode="local";colRef=null;duas=ls.get("dt-duas",[]);logs=ls.get("dt-logs",{});checks=ls.get("dt-checks",{});books=ls.get("dt-books",{});booksFresh=true;
+  mode="local";colRef=null;duas=ls.get("dt-duas",[]);logs=ls.get("dt-logs",{});checks=ls.get("dt-checks",{});books=ls.get("dt-books",{});booksFresh=true;quran=ls.get("dt-quran",null);
   statusEl().textContent="Saved on this device only. Sign in with Google (top right) to keep it in your account.";
   $("#trkStatus").textContent="Ticks are saved on this device only. Sign in with Google to sync them.";
   renderAll();
@@ -612,6 +628,7 @@ function writeAll(data){
   const jobs=[];
   (data.duas||[]).forEach(d=>{if(d&&d.id)jobs.push(colRef.doc(String(d.id)).set(Object.assign(stripId(d),{kind:"dua"})))});
   Object.entries(data.logs||{}).forEach(([dk,t])=>jobs.push(colRef.doc("log-"+dk).set({kind:"log",date:dk,ticks:t||{}})));
+  if(data.quran)jobs.push(colRef.doc("quran").set(Object.assign({kind:"quran"},data.quran)));
   Object.entries(data.books||{}).forEach(([b,d])=>jobs.push(colRef.doc("book-"+b).set({kind:"book",book:b,done:d||{}})));
   Object.entries(data.checks||{}).forEach(([dk,sl])=>jobs.push(colRef.doc("chk-"+dk).set({kind:"check",date:dk,slots:sl||{}})));
   return Promise.all(jobs).then(()=>jobs.length);
@@ -647,8 +664,8 @@ async function initStore(){
 let migrated=false;
 function subscribe(){
   const {fs,db}=fb;
-  const local={duas:ls.get("dt-duas",[]),logs:ls.get("dt-logs",{}),checks:ls.get("dt-checks",{}),books:ls.get("dt-books",{})};
-  const hadLocal=local.duas.length||Object.keys(local.logs).length||Object.keys(local.checks).length;
+  const local={duas:ls.get("dt-duas",[]),logs:ls.get("dt-logs",{}),checks:ls.get("dt-checks",{}),books:ls.get("dt-books",{}),quran:ls.get("dt-quran",null)};
+  const hadLocal=local.duas.length||Object.keys(local.logs).length||Object.keys(local.checks).length||!!local.quran;
   const ref=fs.collection(db,"users",uid,"entries");
   colRef={doc:id=>({set:data=>fs.setDoc(fs.doc(ref,id),JSON.parse(JSON.stringify(data))),delete:()=>fs.deleteDoc(fs.doc(ref,id))})};
   mode="db";setSync("Syncing…");
@@ -1056,15 +1073,85 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(
   if(a==="pdfdel"){if(b.dataset.sure){IDB.del(b.dataset.book).then(()=>{pdfHave[b.dataset.book]=false;R.doc=null;pdfMsg[b.dataset.book]="Removed from this device.";renderLibrary()})}else{b.dataset.sure="1";b.textContent="Tap again to remove"}}});
 document.addEventListener("change",e=>{if(e.target.matches&&e.target.matches(".pdfpick"))savePdf(e.target.dataset.book,e.target.files[0])});
 
+/* ---------- khatmah: one juz a day ---------- */
+let quran=null; let qChain=Promise.resolve();
+const JUZ=[["Alif Lām Mīm","al-Fātiḥah 1",1],["Sayaqūl","al-Baqarah 142",22],["Tilka r-Rusul","al-Baqarah 253",42],["Lan Tanālū","Āl ʿImrān 93",62],["Wal-Muḥṣanāt","an-Nisāʾ 24",82],["Lā Yuḥibbu llāh","an-Nisāʾ 148",102],["Wa Idhā Samiʿū","al-Māʾidah 82",121],["Wa Law Annanā","al-Anʿām 111",142],["Qāla l-Malaʾ","al-Aʿrāf 88",162],["Waʿlamū","al-Anfāl 41",182],["Yaʿtadhirūn","at-Tawbah 93",201],["Wa Mā Min Dābbah","Hūd 6",222],["Wa Mā Ubarriʾu","Yūsuf 53",242],["Rubamā","al-Ḥijr 1",262],["Subḥāna lladhī","al-Isrāʾ 1",282],["Qāla Alam","al-Kahf 75",302],["Iqtaraba","al-Anbiyāʾ 1",322],["Qad Aflaḥa","al-Muʾminūn 1",342],["Wa Qāla lladhīna","al-Furqān 21",362],["A-man Khalaqa","an-Naml 56",382],["Utlu Mā Ūḥiya","al-ʿAnkabūt 46",402],["Wa Man Yaqnut","al-Aḥzāb 31",422],["Wa Mā Liya","Yā Sīn 28",442],["Fa-man Aẓlamu","az-Zumar 32",462],["Ilayhi Yuraddu","Fuṣṣilat 47",482],["Ḥā Mīm","al-Aḥqāf 1",502],["Qāla Fa-mā Khaṭbukum","adh-Dhāriyāt 31",522],["Qad Samiʿa llāh","al-Mujādilah 1",542],["Tabāraka lladhī","al-Mulk 1",562],["ʿAmma","an-Nabaʾ 1",582]];
+const juzPages=i=>[JUZ[i][2],i<29?JUZ[i+1][2]-1:604];
+const QNIYYAH=[["n1","For Allah alone, seeking His pleasure","\"Actions are only by intentions\" (Bukhārī 1)"],
+ ["n2","To act on what I read","The Companions learned ten āyāt and did not move on until they had acted on them (aṭ-Ṭabarī, introduction)"],
+ ["n3","As a cure for my heart","\"A cure for what is in the chests\" (Yūnus 10:57). The kitab, p. 5: the whole Qur'an is a cure (al-Isrāʾ 17:82)"],
+ ["n4","For the reward of every letter","Each letter is one good deed, and a good deed is multiplied ten times (Tirmidhī 2910)"],
+ ["n5","That it will intercede for me","\"Read the Qur'an, for it will come on the Day of Resurrection as an intercessor for its companions\" (Muslim 804)"],
+ ["n6","To reflect on its āyāt","\"A blessed Book We sent down to you, that they may reflect on its verses\" (Ṣād 38:29)"]];
+const QDUA=[["d1","Wuḍūʾ","Come to the words of Allah in purity"],
+ ["d2","Istiʿādhah","أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ · \"When you recite the Qur'an, seek refuge in Allah from Shayṭān, the accursed\" (an-Naḥl 16:98)"],
+ ["d3","Basmalah at the start of each sūrah","بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"],
+ ["d4","Ask at an āyah of mercy, seek refuge at an āyah of punishment","The Prophet ﷺ did this in his night prayer (Muslim 772)"],
+ ["d5","Du'a in the sajdah of recitation","سَجَدَ وَجْهِيَ لِلَّذِي خَلَقَهُ وَشَقَّ سَمْعَهُ وَبَصَرَهُ بِحَوْلِهِ وَقُوَّتِهِ (Abū Dāwūd 1414, Tirmidhī 580)"],
+ ["d6","After reading: ask for knowledge and a living heart","رَبِّ زِدْنِي عِلْمًا (Ṭāhā 20:114) · \"make the Qur'an the spring of my heart\" (Aḥmad 3712)"]];
+function qState(){if(!quran)quran={start:null,juz:{},days:{},checks:{},done:[]};["juz","days","checks"].forEach(k=>{if(!quran[k])quran[k]={}});if(!quran.done)quran.done=[];return quran}
+function persistQuran(){const data=JSON.parse(JSON.stringify(qState()));
+  if(mode==="db"&&colRef){qChain=qChain.then(()=>colRef.doc("quran").set(Object.assign({kind:"quran"},data))).catch(()=>{const e=$("#qSave");if(e)e.textContent="Couldn't save. Check your connection and tap again."})}
+  else ls.set("dt-quran",data)}
+function daysBetween(a,b){return Math.round((startOfDay(b)-startOfDay(a))/864e5)}
+function parseDay(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+function qToggle(i){const q=qState(),k=String(i+1),today=dayKey(new Date());
+  if(!q.start)q.start=today;
+  if(q.juz[k]){const was=q.juz[k];delete q.juz[k];if(q.days[was]){q.days[was]--;if(q.days[was]<=0)delete q.days[was]}}
+  else{q.juz[k]=today;q.days[today]=(q.days[today]||0)+1}
+  renderQuran();persistQuran()}
+function qCheck(id){const q=qState(),dk=dayKey(new Date()),c=Object.assign({},q.checks[dk]||{});if(c[id])delete c[id];else c[id]=1;
+  q.checks={};q.checks[dk]=c;renderQuran();persistQuran()}
+function qStreak(){const q=qState();let d=startOfDay(new Date()),n=0;if(!q.days[dayKey(d)])d=addMin(d,-1440);
+  for(let i=0;i<400&&q.days[dayKey(d)];i++){n++;d=addMin(d,-1440)}return n}
+function renderQuran(){
+  const box=$("#qBox");if(!box)return;const q=qState(),now=new Date(),today=dayKey(now);
+  const doneN=Object.keys(q.juz).length, nextI=JUZ.findIndex((_,i)=>!q.juz[String(i+1)]);
+  const day=q.start?daysBetween(parseDay(q.start),now)+1:0, expected=q.start?Math.min(30,day):0, diff=doneN-expected;
+  const todayN=q.days[today]||0, streak=qStreak();
+  let status;
+  if(!q.start)status="Start today and finish in 30 days, in shā' Allāh.";
+  else if(doneN===30)status="Khatmah complete. Alḥamdulillāh.";
+  else if(diff>0)status=diff+" juz ahead of your plan.";
+  else if(diff===0)status="On plan.";
+  else status="Your plan says Juz "+expected+" today: read "+(-diff)+" juz extra to close the gap.";
+  let h=`<div class="chk"><div class="ph-head"><div><div class="eyebrow">${q.start?"Day "+Math.min(day,99)+" · started "+parseDay(q.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Khatmah · one juz a day"}</div><h3 style="font-size:1.35rem">${doneN===30?"Khatmah complete":(todayN&&diff>=0)?"Today's juz is read ✓":nextI>=0?"Today: Juz "+(nextI+1):""}</h3></div><div class="score">${doneN}<small> / 30</small></div></div>
+  <div class="bar"><i style="width:${Math.round(doneN/30*100)}%"></i></div>
+  <div class="status" style="color:var(--ink)">${esc(status)}</div>`;
+  if(nextI>=0){const [a,z]=juzPages(nextI);h+=`<div class="card" style="gap:6px"><span class="eyebrow">${(todayN&&diff>=0)?"Next · ":""}Juz ${nextI+1} · ${esc(JUZ[nextI][0])}</span><b>From ${esc(JUZ[nextI][1])} · pages ${a}–${z}</b><p>About ${z-a+1} pages. ${todayN?"You read "+todayN+" juz today.":"Split it over the prayers: about 4 pages after each one."}</p><div class="dua-actions"><button class="btn primary" data-act="qtick" data-i="${nextI}">Juz ${nextI+1} read ✓</button></div></div>`}
+  else h+=`<div class="note"><b>Make du'a at the khatmah.</b> When Anas ibn Mālik finished the Qur'an, he gathered his family and made du'a (ad-Dārimī 3517). Gather yours, then start the next one.<div class="dua-actions" style="margin-top:8px"><button class="btn primary" data-act="qnew">Start the next khatmah</button></div></div>`;
+  h+=`<div class="slots" style="flex-wrap:wrap;overflow:visible">`+[["Streak",streak+(streak===1?" day":" days")],["Today",todayN+" juz"],["Khatmahs",String(q.done.length)]].map(([t,v])=>`<div class="slot" style="cursor:default"><small>${t}</small><b>${v}</b></div>`).join("")+`</div>`;
+  if(q.start)h+=`<div class="field" style="max-width:220px"><label for="qStart">Started on</label><input type="date" id="qStart" value="${q.start}"></div>`;
+  h+=`<div class="status" id="qSave"></div></div>`;
+  // checklists
+  const c=q.checks[today]||{};
+  const list=(items,title,sub)=>`<div class="block"><h3>${title}</h3><div class="src">${sub}</div><div class="check">${items.map(([id,t,s])=>`<label><input type="checkbox" data-qcheck="${id}" ${c[id]?"checked":""}><span>${esc(t)}<small${/[؀-ۿ]/.test(s)?' style="font-size:.9rem"':""}>${esc(s)}</small></span></label>`).join("")}</div></div>`;
+  h+=list(QNIYYAH,"Niyyah before you read","Renew your intention each day. The ticks reset tomorrow.");
+  h+=list(QDUA,"Du'a and adab while reading","From the Qur'an and the Sunnah.");
+  // grid
+  h+=`<div class="block"><h3>The 30 juz</h3><div class="juzgrid">${JUZ.map((j,i)=>{const on=q.juz[String(i+1)];return `<button class="juz ${on?"on":""} ${i===nextI?"cur":""}" data-act="qtick" data-i="${i}" aria-pressed="${!!on}" title="${esc(j[0]+" · "+j[1])}"><b>${i+1}</b><small>${on?parseDay(on).toLocaleDateString("en-GB",{day:"numeric",month:"numeric"}):"p. "+j[2]}</small></button>`}).join("")}</div><div class="src">Tap a juz to tick it, tap again to untick. Page numbers follow the standard 604-page Madīnah muṣḥaf.</div></div>`;
+  if(q.done.length)h+=`<div class="block"><h3>Finished khatmahs</h3><div class="cards">${q.done.slice().reverse().map((d,i)=>`<div class="card"><b>Khatmah ${q.done.length-i}</b><p>${parseDay(d.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${parseDay(d.end).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${daysBetween(parseDay(d.start),parseDay(d.end))+1} days</p></div>`).join("")}</div></div>`;
+  box.innerHTML=h;
+  // nudge on Today
+  const qn=$("#qNudge");if(qn){if(nextI>=0){const [a,z]=juzPages(nextI);qn.hidden=false;qn.innerHTML=`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>${(todayN&&diff>=0)?`<b>Qur'an: today's juz is read ✓</b> · next is Juz ${nextI+1}`:`<b>Qur'an today: Juz ${nextI+1}</b> · ${esc(JUZ[nextI][1])}, pages ${a}–${z}`}</span><button class="btn" data-act="goq">Khatmah</button></div>`}else qn.hidden=true}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="qtick")qToggle(parseInt(b.dataset.i,10));
+  if(a==="qnew"){const q=qState();q.done.push({start:q.start||dayKey(new Date()),end:dayKey(new Date())});q.juz={};q.start=dayKey(new Date());renderQuran();persistQuran()}
+  if(a==="goq"){show("quran");try{history.replaceState(null,"","#quran")}catch(_){}}});
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset&&t.dataset.qcheck)qCheck(t.dataset.qcheck);
+  if(t.id==="qStart"&&t.value){qState().start=t.value;renderQuran();persistQuran()}});
+
 /* ---------- tabs ---------- */
-const VIEWS=["today","prayers","check","library","mine","adab","setup"];
+const VIEWS=["today","prayers","check","quran","library","mine","adab","setup"];
 function show(v){if(v==="read")return;if(!VIEWS.includes(v))v="today";VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)))}
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{show(t.dataset.view);try{history.replaceState(null,"","#"+t.dataset.view)}catch(e){location.hash=t.dataset.view}}));
 window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
 
 /* ---------- loop ---------- */
 let lastDay="";
-function recompute(){const now=new Date();cur=windows(now);lastDay=dayKey(now);renderHeader(now);renderDial(now);renderTimes();renderSpecial();renderNow();renderTrk();renderChk()}
+function recompute(){const now=new Date();cur=windows(now);lastDay=dayKey(now);renderHeader(now);renderDial(now);renderTimes();renderSpecial();renderNow();renderTrk();renderChk();if(typeof renderQuran==="function")renderQuran()}
 function tick(){const now=new Date();if(dayKey(now)!==lastDay){recompute();renderMine();return}
   if(cur&&cur.W.some(w=>w.id==="night"&&now>=w.end&&w.end.getDate()===now.getDate())){/* last third ended: switch to tonight */recompute();return}
   $("#clock").textContent=fmt(now);renderDial(now);renderTimes();renderNow();renderTrk();renderChk()}
