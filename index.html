@@ -206,6 +206,17 @@ table.week{border-collapse:collapse;width:100%;min-width:340px;font-size:.85rem}
 .rd-wrap canvas{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.4)}
 .rd-msg{color:#ddd;text-align:center;padding:40px 20px}
 #rdDone[aria-pressed="true"]{background:var(--now);border-color:var(--now);color:#fff}
+.booktile{display:grid;grid-template-columns:48px minmax(0,1fr);gap:14px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--ink)}
+.spine.sm{width:48px;height:66px}
+.spine.sm span{font-size:.8rem}
+.bt{display:grid;gap:4px;min-width:0}
+.bt b{font-family:var(--f-display);font-weight:400;font-size:1.15rem}
+.bt small{color:var(--muted);font-size:.8rem}
+.planopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.planopt{display:grid;gap:2px;justify-items:start;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px}
+.planopt b{font-family:var(--f-display);font-weight:400;font-size:1.4rem;line-height:1}
+.planopt small{color:var(--muted);font-size:.74rem}
+.planopt.on{border-color:var(--now);background:var(--now-soft)}
 .book-foot{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--line)}
 .book-foot a{color:var(--ink);text-decoration:none}
 .slots{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
@@ -613,13 +624,14 @@ function applyDocs(docs,fresh){
   duas=docs.filter(x=>x.data.kind==="dua").map(x=>Object.assign({id:x.id},x.data)).sort((a,b)=>(a.created||0)-(b.created||0));
   const nl={},nc={};docs.forEach(x=>{const v=x.data;if(v.kind==="log"&&v.date)nl[v.date]=Object.assign({},v.ticks||{});if(v.kind==="check"&&v.date)nc[v.date]=JSON.parse(JSON.stringify(v.slots||{}))});
   logs=nl;checks=nc;
-  const nb={};docs.forEach(x=>{const v=x.data;if(v.kind==="book"&&v.book)nb[v.book]=Object.assign({},v.done||{})});books=nb;booksFresh=fresh!==false;
+  const nb={};docs.forEach(x=>{const v=x.data;if(v.kind==="book"&&v.book)nb[v.book]=Object.assign({},v.done||{})});books=nb;
+  const nx={};docs.forEach(x=>{const v=x.data;if(v.kind==="book"&&v.book)nx[v.book]={plan:v.plan||null,page:v.page||0,log:Object.assign({},v.log||{})}});bookx=nx;booksFresh=fresh!==false;
   const qd=docs.find(x=>x.data.kind==="quran");quran=qd?JSON.parse(JSON.stringify(qd.data)):null;
   renderAll();
 }
 function renderAll(){renderMine();renderNow();renderTrk();renderChk();renderLibrary();renderQuran()}
 function loadLocal(){
-  mode="local";colRef=null;duas=ls.get("dt-duas",[]);logs=ls.get("dt-logs",{});checks=ls.get("dt-checks",{});books=ls.get("dt-books",{});booksFresh=true;quran=ls.get("dt-quran",null);
+  mode="local";colRef=null;duas=ls.get("dt-duas",[]);logs=ls.get("dt-logs",{});checks=ls.get("dt-checks",{});books=ls.get("dt-books",{});bookx=ls.get("dt-bookx",{});booksFresh=true;quran=ls.get("dt-quran",null);
   statusEl().textContent="Saved on this device only. Sign in with Google (top right) to keep it in your account.";
   $("#trkStatus").textContent="Ticks are saved on this device only. Sign in with Google to sync them.";
   renderAll();
@@ -629,7 +641,8 @@ function writeAll(data){
   (data.duas||[]).forEach(d=>{if(d&&d.id)jobs.push(colRef.doc(String(d.id)).set(Object.assign(stripId(d),{kind:"dua"})))});
   Object.entries(data.logs||{}).forEach(([dk,t])=>jobs.push(colRef.doc("log-"+dk).set({kind:"log",date:dk,ticks:t||{}})));
   if(data.quran)jobs.push(colRef.doc("quran").set(Object.assign({kind:"quran"},data.quran)));
-  Object.entries(data.books||{}).forEach(([b,d])=>jobs.push(colRef.doc("book-"+b).set({kind:"book",book:b,done:d||{}})));
+  Object.entries(data.books||{}).forEach(([b,d])=>{const x=(data.bookx||{})[b]||{};jobs.push(colRef.doc("book-"+b).set({kind:"book",book:b,done:d||{},plan:x.plan||null,page:x.page||0,log:x.log||{}}))});
+  Object.entries(data.bookx||{}).forEach(([b,x])=>{if(!(data.books||{})[b])jobs.push(colRef.doc("book-"+b).set({kind:"book",book:b,done:{},plan:x.plan||null,page:x.page||0,log:x.log||{}}))});
   Object.entries(data.checks||{}).forEach(([dk,sl])=>jobs.push(colRef.doc("chk-"+dk).set({kind:"check",date:dk,slots:sl||{}})));
   return Promise.all(jobs).then(()=>jobs.length);
 }
@@ -664,7 +677,7 @@ async function initStore(){
 let migrated=false;
 function subscribe(){
   const {fs,db}=fb;
-  const local={duas:ls.get("dt-duas",[]),logs:ls.get("dt-logs",{}),checks:ls.get("dt-checks",{}),books:ls.get("dt-books",{}),quran:ls.get("dt-quran",null)};
+  const local={duas:ls.get("dt-duas",[]),logs:ls.get("dt-logs",{}),checks:ls.get("dt-checks",{}),books:ls.get("dt-books",{}),bookx:ls.get("dt-bookx",{}),quran:ls.get("dt-quran",null)};
   const hadLocal=local.duas.length||Object.keys(local.logs).length||Object.keys(local.checks).length||!!local.quran;
   const ref=fs.collection(db,"users",uid,"entries");
   colRef={doc:id=>({set:data=>fs.setDoc(fs.doc(ref,id),JSON.parse(JSON.stringify(data))),delete:()=>fs.deleteDoc(fs.doc(ref,id))})};
@@ -966,40 +979,99 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(
 document.addEventListener("change",e=>{if(e.target.id!=="chk-note")return;const d=trkDate(new Date());setChk(dayKey(d),e.target.dataset.k,"note",e.target.value.trim())});
 
 /* ---------- library ---------- */
-let books={}, booksFresh=false; const bookChains={};
+let books={}, bookx={}, booksFresh=false, libOpen=null, planEdit={}; const bookChains={};
 const BOOKS=[{id:"disease-cure",title:"The Disease and the Cure",ar:"الدَّاءُ وَالدَّوَاءُ",author:"Ibn Qayyim al-Jawziyyah (d. 751 AH)",edition:"Hikmah Publications, 2020 · 527 pages",teacher:"Lecture series: Abdulrahman Hassan",
   notes:"https://claude.ai/artifact/EYEtARMKXvipPvaNg9CAd1",seedDone:12,pages:527,offset:23,
-  sessions:[[1,48,"Part 1: the cure and du'a","today"],[49,84,"Good opinion of Allah vs delusion"],[85,108,"Deceived by the dunyā; hope and fear"],[109,138,"Punishments of past nations; first harms of sins"],[139,170,"Harms of sins, continued"],[171,210,"Harms of sins, continued"],[211,240,"The devils and the eye, ear, tongue; forgetting yourself"],[241,264,"Worldly and hereafter punishments"],[265,298,"Sound heart; categories of sins; shirk"],[299,340,"Reality of shirk; innovation; oppression; murder"],[341,370,"The four doors: glance, thought, word, step","check"],[371,394,"Bad endings; people of Lūṭ; the cure for infatuation"],[395,424,"Levels and types of love"],[425,456,"Lā ilāha illa Allāh; love as the root of all action"],[457,486,"Forbidden images; harms and stages of infatuation"],[487,510,"The highest happiness; seeing Allah"],[511,527,"Love of His speech; love of women; Zaynab; the final hadith"],[0,0,"Review your notes and write one page: \"What this book changed for me\""]]}];
+  sessions:[[1,48,"Part 1: the cure and du'a","today"],[49,84,"Good opinion of Allah vs delusion"],[85,108,"Deceived by the dunyā; hope and fear"],[109,138,"Punishments of past nations; first harms of sins"],[139,170,"Harms of sins, continued"],[171,210,"Harms of sins, continued"],[211,240,"The devils and the eye, ear, tongue; forgetting yourself"],[241,264,"Worldly and hereafter punishments"],[265,298,"Sound heart; categories of sins; shirk"],[299,340,"Reality of shirk; innovation; oppression; murder"],[341,370,"The four doors: glance, thought, word, step","check"],[371,394,"Bad endings; people of Lūṭ; the cure for infatuation"],[395,424,"Levels and types of love"],[425,456,"Lā ilāha illa Allāh; love as the root of all action"],[457,486,"Forbidden images; harms and stages of infatuation"],[487,510,"The highest happiness; seeing Allah"],[511,527,"Love of His speech; love of women; Zaynab; the final hadith"],[0,0,"Review your notes and write one page: \"What this book changed for me\""]]},
+ {id:"patience",title:"The Principle of Patience",ar:"قَاعِدَةٌ فِي الصَّبْرِ",author:"Shaykh al-Islām Ibn Taymiyyah (d. 728 AH)",edition:"Darul Imam Muslim, 2015 · tr. Abū Fāṭimah Azhar Majothi",teacher:"",
+  plan:true,first:3,pages:32,offset:2,
+  chapters:[[3,"Translator's preface: Ibn Taymiyyah's life and imprisonment"],[11,"The affair of the believer: thankful in ease, patient in hardship"],[12,"The three types of patience"],[17,"What helps you to be patient with people's harm: points 1–3"],[21,"Points 4–8: forgiveness, honour, Allah loves the doers of good"],[24,"Points 9–13: patience is half of faith, Allah is with the patient"],[28,"Points 14–17: repel evil with what is better"],[31,"Points 18–20 and conclusion"]]}];
 const APPLINK={today:["Du'a times","today"],check:["Muḥāsabah","check"]};
+function bx(id){if(!bookx[id])bookx[id]={plan:null,page:0,log:{}};if(!bookx[id].log)bookx[id].log={};return bookx[id]}
 function persistBook(id){
-  const done=Object.assign({},books[id]||{});
-  if(mode==="db"&&colRef){const k="book-"+id;bookChains[k]=(bookChains[k]||Promise.resolve()).then(()=>colRef.doc(k).set({kind:"book",book:id,done})).catch(()=>{})}
-  else ls.set("dt-books",books);
+  const done=Object.assign({},books[id]||{}),x=JSON.parse(JSON.stringify(bx(id)));
+  if(mode==="db"&&colRef){const k="book-"+id;bookChains[k]=(bookChains[k]||Promise.resolve()).then(()=>colRef.doc(k).set({kind:"book",book:id,done,plan:x.plan||null,page:x.page||0,log:x.log||{}})).catch(()=>{})}
+  else{ls.set("dt-books",books);ls.set("dt-bookx",bookx)}
 }
+const fmtDay=d=>d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+/* page-plan maths: printed pages first..pages; x.page = last page read */
+function planInfo(b){
+  const x=bx(b.id),today=dayKey(new Date()),cur=Math.max(x.page||0,b.first-1),last=b.pages,remaining=Math.max(0,last-cur);
+  const readToday=!!x.log[today];
+  const info={cur,last,remaining,readToday,pct:Math.round((cur-(b.first-1))/(last-b.first+1)*100),finished:remaining===0};
+  if(!x.plan||info.finished)return info;
+  const p=x.plan,per=Math.max(1,p.perDay),since=Math.max(0,daysBetween(parseDay(p.start),new Date()));
+  const expected=Math.min(last,p.base+per*(since+1));
+  info.per=per;info.expected=expected;
+  info.todayFrom=cur+1;info.todayTo=Math.min(last,Math.max(expected,readToday?cur:cur+per));
+  info.doneToday=cur>=expected;
+  const startOffset=info.doneToday?1:0;
+  const daysNeeded=Math.ceil(Math.max(0,last-(info.doneToday?cur:info.todayTo))/per)+(info.doneToday?0:1)-1;
+  info.finish=addMin(startOfDay(new Date()),1440*(startOffset+Math.max(0,daysNeeded)));
+  info.ahead=cur-expected;
+  return info;
+}
+function finishFor(b,per){const x=bx(b.id),cur=Math.max(x.page||0,b.first-1),rem=b.pages-cur;return addMin(startOfDay(new Date()),1440*(Math.ceil(rem/per)-1))}
 function readBlock(b,nextIdx){
   const msg=pdfMsg[b.id]?`<div class="status">${esc(pdfMsg[b.id])}</div>`:"";
-  if(pdfHave[b.id]){const last=Number(ls.get("cth-lastpage-"+b.id,0)),pr=last?last-b.offset:0;const nx=nextIdx>=0&&b.sessions[nextIdx][1]?b.sessions[nextIdx]:null;
-    return `<div class="readblk"><div class="dua-actions"><button class="btn primary" data-act="read" data-book="${b.id}">${pr>0?"Continue reading · p. "+pr:"Open the book"}</button>${nx?`<button class="btn" data-act="read" data-book="${b.id}" data-p="${nx[0]}">Session ${nextIdx+1} · p. ${nx[0]}</button>`:""}</div><div class="src">The PDF is stored only on this device. <button class="linkbtn" data-act="pdfdel" data-book="${b.id}">Remove</button></div>${msg}</div>`}
-  return `<div class="readblk"><b>Read the book here</b><div class="src">Choose the PDF from your phone once. It stays only on this device: it is not uploaded anywhere. After that it opens offline, at any session.</div><label class="btn primary pdflabel">Choose PDF<input type="file" accept="application/pdf,.pdf" class="pdfpick" data-book="${b.id}" hidden></label>${msg}</div>`;
+  if(pdfHave[b.id]){const last=Number(ls.get("cth-lastpage-"+b.id,0)),pr=last?last-b.offset:0;
+    let second="";
+    if(b.sessions){const nx=nextIdx>=0&&b.sessions[nextIdx][1]?b.sessions[nextIdx]:null;if(nx)second=`<button class="btn" data-act="read" data-book="${b.id}" data-p="${nx[0]}">Session ${nextIdx+1} · p. ${nx[0]}</button>`}
+    else{const pi=planInfo(b);if(!pi.finished)second=`<button class="btn" data-act="read" data-book="${b.id}" data-p="${pi.cur+1}">Today's pages · p. ${pi.cur+1}</button>`}
+    return `<div class="readblk"><div class="dua-actions"><button class="btn primary" data-act="read" data-book="${b.id}">${pr>0?"Continue reading · p. "+pr:"Open the book"}</button>${second}</div><div class="src">The PDF is stored only on this device. <button class="linkbtn" data-act="pdfdel" data-book="${b.id}">Remove</button></div>${msg}</div>`}
+  return `<div class="readblk"><b>Read the book here</b><div class="src">Choose the PDF from your phone once. It stays only on this device: it is not uploaded anywhere. After that it opens offline.</div><label class="btn primary pdflabel">Choose PDF<input type="file" accept="application/pdf,.pdf" class="pdfpick" data-book="${b.id}" hidden></label>${msg}</div>`;
 }
+function sessionStats(b){const done=books[b.id]||{},n=b.sessions.length,dn=b.sessions.filter((_,i)=>done[i+1]).length,nextIdx=b.sessions.findIndex((_,i)=>!done[i+1]);
+  let pagesRead=0;b.sessions.forEach(([a,z],i)=>{if(done[i+1]&&z)pagesRead+=z-a+1});return{done,n,dn,nextIdx,pagesRead,pct:Math.round(dn/n*100)}}
+function bookHead(b){return `<div class="book-head"><div class="spine"><span>${esc(b.ar)}</span></div><div style="display:grid;gap:4px;align-content:start"><h3>${esc(b.title)}</h3><div class="ar">${esc(b.ar)}</div><div class="meta">${esc(b.author)}<br>${esc(b.edition)}${b.teacher?"<br>"+esc(b.teacher):""}</div></div></div>`}
+function planPicker(b){const x=bx(b.id),opts=[1,2,3,5,10,20].filter(n=>n<b.pages);const cur=x.plan?x.plan.perDay:0;
+  return `<div class="readblk"><b>How many pages a day?</b><div class="planopts">${opts.map(n=>`<button class="planopt ${n===cur?"on":""}" data-act="plan" data-book="${b.id}" data-n="${n}"><b>${n}</b><small>${n===1?"page":"pages"} a day</small><small>done ${fmtDay(finishFor(b,n))}</small></button>`).join("")}</div>
+    <div class="dua-actions" style="align-items:center"><label class="src" for="pp-${b.id}">Other:</label><input type="number" min="1" max="${b.pages}" id="pp-${b.id}" style="width:80px" placeholder="pages"><button class="btn" data-act="plancustom" data-book="${b.id}">Set</button>${x.plan?`<button class="btn ghost" data-act="planclose" data-book="${b.id}">Cancel</button>`:""}</div></div>`}
+function pageBookDetail(b){
+  const x=bx(b.id),pi=planInfo(b);let h=bookHead(b);
+  h+=`<div class="prog"><div class="prog-top"><span class="eyebrow">${pi.finished?"Finished, alḥamdulillāh":x.plan?(pi.doneToday?"Today's pages are read ✓":"Today: p. "+pi.todayFrom+"–"+pi.todayTo):"Set a daily plan"}</span><b>${Math.max(0,pi.cur-b.first+1)}<small style="font-family:var(--f-body);font-size:.8rem;color:var(--muted)"> / ${b.pages-b.first+1} pages</small></b></div><div class="bar"><i style="width:${Math.max(0,pi.pct)}%"></i></div>
+    <div class="src">${pi.finished?"You finished the book.":x.plan?`${x.plan.perDay} ${x.plan.perDay===1?"page":"pages"} a day · you finish on <b style="color:var(--ink)">${fmtDay(pi.finish)}</b>${pi.ahead>0?" · "+pi.ahead+(pi.ahead===1?" page":" pages")+" ahead of plan":pi.ahead<0&&!pi.doneToday&&pi.todayTo-pi.todayFrom+1>pi.per?" · today's portion includes the pages to catch up":""}`:"Pick how many pages a day and the app shows the day you finish."}</div></div>`;
+  if(!x.plan||planEdit[b.id])h+=planPicker(b);
+  else if(!pi.finished)h+=`<div class="readblk"><div class="dua-actions">${pi.doneToday?"":`<button class="btn primary" data-act="pagesread" data-book="${b.id}" data-to="${pi.todayTo}">Pages ${pi.todayFrom}–${pi.todayTo} read ✓</button>`}<button class="btn ghost" data-act="planedit" data-book="${b.id}">Change plan</button></div>
+    <div class="dua-actions" style="align-items:center"><label class="src" for="upto-${b.id}">I read up to page</label><input type="number" min="${b.first}" max="${b.pages}" id="upto-${b.id}" style="width:80px" value="${pi.cur>=b.first?pi.cur:""}"><button class="btn" data-act="upto" data-book="${b.id}">Save</button></div></div>`;
+  h+=readBlock(b,-1);
+  h+=`<div>${b.chapters.map(([p,t],i)=>{const end=i<b.chapters.length-1?b.chapters[i+1][0]-1:b.pages,on=pi.cur>=end;
+    return `<div class="sessrow ${!on&&pi.cur+1>=p&&pi.cur<end?"next":""}"><div class="sess" aria-pressed="${on}" style="cursor:default"><span class="box">✓</span><span><span class="st">p. ${p}${end>p?"–"+end:""}</span><small>${esc(t)}</small></span></div>${pdfHave[b.id]?`<button class="readbtn" data-act="read" data-book="${b.id}" data-p="${p}">Read</button>`:""}</div>`}).join("")}</div>`;
+  return h;
+}
+function sessionBookDetail(b){
+  const st=sessionStats(b);let h=bookHead(b);
+  h+=`<div class="prog"><div class="prog-top"><span class="eyebrow">${st.dn===st.n?"Finished, alḥamdulillāh":st.nextIdx>=0?"Next: session "+(st.nextIdx+1):""}</span><b>${st.dn}<small style="font-family:var(--f-body);font-size:.8rem;color:var(--muted)"> / ${st.n} sessions</small></b></div><div class="bar"><i style="width:${st.pct}%"></i></div><div class="src">${st.pagesRead} of ${b.pages} pages · ${st.pct}%</div></div>`;
+  h+=readBlock(b,st.nextIdx);
+  h+=`<div>${b.sessions.map(([a,z,t,app],i)=>{const k=i+1,on=!!st.done[k],when=on&&/^\d{4}-/.test(st.done[k])?" · done "+st.done[k].slice(8,10)+"."+st.done[k].slice(5,7)+".":"";
+    return `<div class="sessrow ${i===st.nextIdx?"next":""}"><button class="sess" data-act="sess" data-book="${b.id}" data-k="${k}" aria-pressed="${on}"><span class="box">✓</span><span><span class="st">Session ${k}${z?": pp. "+a+"–"+z:""}</span><small>${esc(t)}${when}</small>${app?`<span class="chipx">In the app: ${esc(APPLINK[app][0])}</span>`:""}</span></button>${pdfHave[b.id]&&z?`<button class="readbtn" data-act="read" data-book="${b.id}" data-p="${a}" aria-label="Read session ${k}">Read</button>`:""}</div>`}).join("")}</div>`;
+  if(b.notes)h+=`<div class="book-foot"><a class="btn" href="${b.notes}" target="_blank" rel="noopener">Open study notes</a></div>`;
+  return h;
+}
+function bookLine(b){
+  if(b.sessions){const st=sessionStats(b);return[st.pct,st.dn===st.n?"Finished":`${st.dn} of ${st.n} sessions · next: session ${st.nextIdx+1}`]}
+  const x=bx(b.id),pi=planInfo(b);
+  return[Math.max(0,pi.pct),pi.finished?"Finished":x.plan?(pi.doneToday?"Today's pages read ✓ · ":"Today: p. "+pi.todayFrom+"–"+pi.todayTo+" · ")+"done "+fmtDay(pi.finish):"New · tap to set pages a day"]}
 function renderLibrary(){
   const box=$("#libBooks");if(!box)return;
-  if(booksFresh)BOOKS.forEach(b=>{if((!books[b.id]||!Object.keys(books[b.id]).length)&&b.seedDone){const d={};for(let i=1;i<=b.seedDone;i++)d[i]="from study notes";books[b.id]=d;persistBook(b.id)}});
-  box.innerHTML=BOOKS.map(b=>{
-    const done=books[b.id]||{}, n=b.sessions.length, dn=b.sessions.filter((_,i)=>done[i+1]).length;
-    const nextIdx=b.sessions.findIndex((_,i)=>!done[i+1]);
-    let pagesRead=0;b.sessions.forEach(([a,z],i)=>{if(done[i+1]&&z)pagesRead+=z-a+1});
-    const pct=Math.round(dn/n*100);
-    return `<article class="book"><div class="book-head"><div class="spine"><span>${esc(b.ar)}</span></div><div style="display:grid;gap:4px;align-content:start"><h3>${esc(b.title)}</h3><div class="ar">${esc(b.ar)}</div><div class="meta">${esc(b.author)}<br>${esc(b.edition)}<br>${esc(b.teacher)}</div></div></div>
-    <div class="prog"><div class="prog-top"><span class="eyebrow">${dn===n?"Finished, alḥamdulillāh":nextIdx>=0?"Next: session "+(nextIdx+1):""}</span><b>${dn}<small style="font-family:var(--f-body);font-size:.8rem;color:var(--muted)"> / ${n} sessions</small></b></div><div class="bar"><i style="width:${pct}%"></i></div><div class="src">${pagesRead} of ${b.pages} pages · ${pct}%</div></div>
-    ${readBlock(b,nextIdx)}
-    <div>${b.sessions.map(([a,z,t,app],i)=>{const k=i+1,on=!!done[k],when=on&&/^\d{4}-/.test(done[k])?" · done "+done[k].slice(8,10)+"."+done[k].slice(5,7)+".":"";
-      return `<div class="sessrow ${i===nextIdx?"next":""}"><button class="sess" data-act="sess" data-book="${b.id}" data-k="${k}" aria-pressed="${on}"><span class="box">✓</span><span><span class="st">Session ${k}${z?": pp. "+a+"–"+z:""}</span><small>${esc(t)}${when}</small>${app?`<span class="chipx">In the app: ${esc(APPLINK[app][0])}</span>`:""}</span></button>${pdfHave[b.id]&&z?`<button class="readbtn" data-act="read" data-book="${b.id}" data-p="${a}" aria-label="Read session ${k}">Read</button>`:""}</div>`}).join("")}</div>
-    <div class="book-foot"><a class="btn" href="${b.notes}" target="_blank" rel="noopener">Open study notes</a></div></article>`}).join("");
+  if(booksFresh)BOOKS.forEach(b=>{if(b.seedDone&&(!books[b.id]||!Object.keys(books[b.id]).length)){const d={};for(let i=1;i<=b.seedDone;i++)d[i]="from study notes";books[b.id]=d;persistBook(b.id)}});
+  const b=BOOKS.find(x=>x.id===libOpen);
+  if(b){box.innerHTML=`<button class="btn ghost" data-act="libback" style="justify-self:start">‹ All books</button><article class="book">${b.sessions?sessionBookDetail(b):pageBookDetail(b)}</article>`;return}
+  box.innerHTML=`<div class="src">Tap a book to open it.</div>`+BOOKS.map(b=>{const [pct,line]=bookLine(b);
+    return `<button class="booktile" data-act="libopen" data-book="${b.id}"><div class="spine sm"><span>${esc(b.ar)}</span></div><span class="bt"><b>${esc(b.title)}</b><small>${esc(b.author)}</small><span class="bar"><i style="width:${pct}%"></i></span><small>${esc(line)}</small></span></button>`}).join("");
 }
-document.addEventListener("click",e=>{const b=e.target.closest('[data-act="sess"]');if(!b)return;
-  const id=b.dataset.book,k=b.dataset.k,d=Object.assign({},books[id]||{});
-  if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;renderLibrary();persistBook(id)});
+function setPage(id,v){const b=BOOKS.find(x=>x.id===id),x=bx(id);v=Math.max(b.first-1,Math.min(b.pages,v));x.page=v;x.log[dayKey(new Date())]=v;renderLibrary();persistBook(id);if(!rd("reader").hidden)updateReaderBar()}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-act]");if(!t)return;const a=t.dataset.act,id=t.dataset.book;
+  if(a==="sess"){const k=t.dataset.k,d=Object.assign({},books[id]||{});if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;renderLibrary();persistBook(id)}
+  if(a==="libopen"){libOpen=id;ls.set("cth-libopen",id);renderLibrary();window.scrollTo(0,0)}
+  if(a==="libback"){libOpen=null;ls.set("cth-libopen","");renderLibrary()}
+  if(a==="plan"||a==="plancustom"){const n=a==="plan"?parseInt(t.dataset.n,10):parseInt(($("#pp-"+id)||{}).value,10);if(!(n>0))return;
+    const b=BOOKS.find(x=>x.id===id),x=bx(id);x.plan={perDay:n,start:dayKey(new Date()),base:Math.max(x.page||0,b.first-1)};planEdit[id]=false;renderLibrary();persistBook(id)}
+  if(a==="planedit"){planEdit[id]=true;renderLibrary()}
+  if(a==="planclose"){planEdit[id]=false;renderLibrary()}
+  if(a==="pagesread")setPage(id,parseInt(t.dataset.to,10));
+  if(a==="upto"){const v=parseInt(($("#upto-"+id)||{}).value,10);if(v>0)setPage(id,v)}});
+libOpen=ls.get("cth-libopen","")||null;
 
 /* ---------- book reader (PDF stays on this device, IndexedDB) ---------- */
 const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
@@ -1024,16 +1096,16 @@ function loadPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
 const R={doc:null,book:null,page:1,busy:false,pending:null,zoom:1};
 const rd=id=>document.getElementById(id);
 function bookOf(id){return BOOKS.find(b=>b.id===id)}
-function sessionAt(b,printed){return b.sessions.findIndex(([a,z])=>z&&printed>=a&&printed<=z)}
+function sessionAt(b,printed){if(!b.sessions)return -1;return b.sessions.findIndex(([a,z])=>z&&printed>=a&&printed<=z)}
 async function openReader(id,printed){
   const b=bookOf(id);rd("reader").hidden=false;document.body.style.overflow="hidden";rd("rdTitle").textContent=b.title;rd("rdMsg").textContent="Opening the book…";rd("rdMsg").hidden=false;
   if(location.hash!=="#read"){try{history.pushState(null,"","#read")}catch(_){}}
-  rd("rdSess").innerHTML=b.sessions.map(([a,z,t],i)=>z?`<option value="${a}">Session ${i+1}: p. ${a}</option>`:"").join("");
+  rd("rdSess").innerHTML=b.sessions?b.sessions.map(([a,z,t],i)=>z?`<option value="${a}">Session ${i+1}: p. ${a}</option>`:"").join(""):b.chapters.map(([a,t])=>`<option value="${a}">p. ${a}: ${esc(t.length>34?t.slice(0,33)+"…":t)}</option>`).join("");
   try{
     if(!R.doc||R.book!==id){const blob=await IDB.get(id);if(!blob)throw new Error("nofile");const lib=await loadPdfJs();R.doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise;R.book=id}
     const last=Number(ls.get("cth-lastpage-"+id,0));
     rd("rdMsg").hidden=true;
-    await renderPage(printed?printed+b.offset:(last||b.offset+1));
+    await renderPage(printed?printed+b.offset:(last||b.offset+(b.first||1)));
   }catch(e){rd("rdMsg").textContent=e.message==="nofile"?"The book isn't on this device yet. Choose the PDF in the Library first.":"The reader couldn't load. Check your connection once, then it works offline."}
 }
 function closeReader(fromHistory){rd("reader").hidden=true;document.body.style.overflow="";if(!fromHistory&&location.hash==="#read"){try{history.back()}catch(_){}}renderLibrary()}
@@ -1054,6 +1126,8 @@ function updateReaderBar(){
   rd("rdOf").textContent=pr>0&&pr<=b.pages?"of "+b.pages:"PDF page "+R.page;
   const si=pr>0?sessionAt(b,pr):-1;
   if(si>=0){rd("rdSess").value=String(b.sessions[si][0]);const done=!!((books[b.id]||{})[si+1]);rd("rdDone").hidden=false;rd("rdDone").textContent=done?"Session "+(si+1)+" done ✓":"Mark session "+(si+1)+" done";rd("rdDone").setAttribute("aria-pressed",String(done));rd("rdDone").dataset.k=si+1}
+  else if(!b.sessions&&pr>=b.first&&pr<=b.pages){let ci=0;b.chapters.forEach(([a],i)=>{if(pr>=a)ci=i});rd("rdSess").value=String(b.chapters[ci][0]);
+    const read=bx(b.id).page>=pr;rd("rdDone").hidden=false;rd("rdDone").textContent=read?"Read up to p. "+bx(b.id).page+" ✓":"I read up to p. "+pr;rd("rdDone").setAttribute("aria-pressed",String(read));rd("rdDone").dataset.k="";rd("rdDone").dataset.p=pr}
   else rd("rdDone").hidden=true;
 }
 function readerSetup(){
@@ -1063,7 +1137,7 @@ function readerSetup(){
   rd("rdPage").addEventListener("change",e=>{const v=parseInt(e.target.value,10);if(v>0)renderPage(v+bookOf(R.book).offset)});
   rd("rdSess").addEventListener("change",e=>renderPage(parseInt(e.target.value,10)+bookOf(R.book).offset));
   rd("rdZoom").addEventListener("click",()=>{R.zoom=R.zoom>=2?1:R.zoom+0.5;rd("rdZoom").textContent=R.zoom===1?"Zoom":"×"+R.zoom;renderPage(R.page)});
-  rd("rdDone").addEventListener("click",e=>{const id=R.book,k=e.currentTarget.dataset.k,d=Object.assign({},books[id]||{});if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;persistBook(id);updateReaderBar()});
+  rd("rdDone").addEventListener("click",e=>{const id=R.book,k=e.currentTarget.dataset.k;if(!k){const pr=parseInt(e.currentTarget.dataset.p,10);if(pr>0&&pr>bx(id).page)setPage(id,pr);return}const d=Object.assign({},books[id]||{});if(d[k])delete d[k];else d[k]=dayKey(new Date());books[id]=d;persistBook(id);updateReaderBar()});
   let sx=null,sy=null;const wrap=rd("rdWrap");
   wrap.addEventListener("touchstart",e=>{if(e.touches.length!==1){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
   wrap.addEventListener("touchend",e=>{if(sx===null||R.zoom!==1)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)renderPage(R.page+(dx<0?1:-1));sx=null},{passive:true});
